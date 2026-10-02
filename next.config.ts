@@ -10,7 +10,19 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Page Cardinal : jamais indexée, jamais mise en cache, et le token
+      // (dans l'URL) ne doit pas fuiter via l'en-tête Referer.
+      {
+        source: "/p/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+    ];
   },
 };
 

@@ -98,6 +98,7 @@ export type Database = {
     Views: Record<never, never>;
     Functions: {
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      share_snapshot: { Args: { p_token_hash: string }; Returns: Json };
     };
     Enums: {
       variance_treatment: VarianceTreatmentEnum;
