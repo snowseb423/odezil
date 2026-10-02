@@ -63,6 +63,8 @@ Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run 
 9. Toute nouvelle table : `enable row level security`, `revoke all … from anon, authenticated`, grants minimaux à `authenticated` (et à `service_role` si un script en a besoin), politique `(select public.is_admin())`, et un test dans `tests/db/rls.test.ts`. Le banc teste les deux configurations Supabase : droits par défaut accordés et mode strict.
 10. Toute nouvelle fonction SQL : aucun droit implicite (`alter default privileges` retire EXECUTE à PUBLIC). Accorder explicitement `execute` au seul rôle qui en a besoin. Ne jamais l'accorder à `anon`.
 11. Le lien magique est envoyé sans cookie et après la réponse (`after`), pour ne pas révéler l'adresse admin. Ne pas réintroduire le client à cookies dans `sendMagicLink`.
+12. Redirect URLs Supabase : uniquement des URLs **exactes** (production, localhost). Jamais de joker `*.vercel.app` ni `*-<équipe>.vercel.app` : le `*` accepte les tirets, et un projet Vercel tiers pourrait recevoir le code OAuth ou le lien magique de l'admin.
+13. La page Cardinal n'importe aucun module client (ni `"use client"`, ni `lucide-react`) : ESLint et `tests/cardinal-page-graph.test.ts` le vérifient.
 
 ## Hors périmètre
 

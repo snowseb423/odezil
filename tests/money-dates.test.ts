@@ -5,6 +5,7 @@ import {
   formatDateShortFr,
   formatMonthFr,
   formatMonthFrCapitalized,
+  formatOfMonthFr,
   isIsoDate,
   isMonthKey,
   monthKeyOf,
@@ -151,5 +152,10 @@ describe("dates", () => {
     expect(formatDateFr("2026-09-01")).toBe("1er septembre 2026");
     expect(formatDateFr("2026-09-14")).toBe("14 septembre 2026");
     expect(formatDateShortFr("2026-09-04")).toBe("04/09/2026");
+    expect(formatOfMonthFr("2026-09")).toBe("de septembre 2026");
+    expect(formatOfMonthFr("2026-08")).toBe("d'août 2026");
+    expect(formatOfMonthFr("2026-04")).toBe("d'avril 2026");
+    expect(formatOfMonthFr("2026-10")).toBe("d'octobre 2026");
+    expect(formatOfMonthFr("2026-01")).toBe("de janvier 2026");
   });
 });

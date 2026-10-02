@@ -5,18 +5,13 @@ import { requireAdmin } from "@/lib/auth";
 import { adjustmentsForB, balanceB } from "@/lib/calculations";
 import { fetchLedger } from "@/lib/data/admin";
 import { HOUSEHOLD_B } from "@/lib/households";
+import { noticeFor } from "@/lib/notices";
 import { formatRs } from "@/lib/money";
-
-const NOTICES: Record<string, string> = {
-  livraison: "Livraison enregistrée.",
-  soa: "Relevé SOA enregistré.",
-  remboursement: "Remboursement enregistré.",
-};
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { supabase } = await requireAdmin();
   const { ok } = await searchParams;
-  const notice = typeof ok === "string" ? NOTICES[ok] : undefined;
+  const notice = noticeFor(ok);
 
   const { deliveries, soas, repayments } = await fetchLedger(supabase);
   const balance = balanceB({ deliveries, adjustments: adjustmentsForB(soas), repayments });

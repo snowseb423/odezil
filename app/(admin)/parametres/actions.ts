@@ -51,6 +51,19 @@ export async function revokeShareLink(): Promise<void> {
   revalidatePath("/parametres");
 }
 
+/**
+ * Point d'entrée unique du panneau du lien : génération (par défaut) ou
+ * révocation (`intent=revoke`). La révocation remet l'état à « idle », pour ne
+ * plus afficher un lien qui vient d'être révoqué.
+ */
+export async function shareLinkAction(_previous: ShareLinkState, formData: FormData): Promise<ShareLinkState> {
+  if (formData.get("intent") === "revoke") {
+    await revokeShareLink();
+    return { status: "idle" };
+  }
+  return generateShareLink();
+}
+
 /** Déconnexion de l'admin. */
 export async function signOut(): Promise<void> {
   const { supabase } = await requireAdmin();
@@ -58,7 +71,12 @@ export async function signOut(): Promise<void> {
   redirect("/login");
 }
 
-export type PriceFormState = { error: string | null; saved: boolean };
+export type PriceFormState = {
+  error: string | null;
+  saved: boolean;
+  /** Saisie renvoyée en cas d'erreur, pour ne pas vider le formulaire. */
+  values?: { unitPrice: string; effectiveFrom: string };
+};
 
 /**
  * Ajoute un prix unitaire avec sa date d'effet. Les livraisons déjà saisies
@@ -66,12 +84,13 @@ export type PriceFormState = { error: string | null; saved: boolean };
  */
 export async function addPrice(_previous: PriceFormState, formData: FormData): Promise<PriceFormState> {
   const { supabase } = await requireAdmin();
-  const parsed = priceInputSchema.safeParse({
+  const values = {
     unitPrice: String(formData.get("unitPrice") ?? ""),
     effectiveFrom: String(formData.get("effectiveFrom") ?? ""),
-  });
+  };
+  const parsed = priceInputSchema.safeParse(values);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Saisie invalide", saved: false };
+    return { error: parsed.error.issues[0]?.message ?? "Saisie invalide", saved: false, values };
   }
 
   const { error } = await supabase.from("price_settings").insert({
@@ -82,6 +101,7 @@ export async function addPrice(_previous: PriceFormState, formData: FormData): P
     return {
       error: error.code === "23505" ? "Un prix existe déjà à cette date d'effet." : "Enregistrement impossible. Réessayez.",
       saved: false,
+      values,
     };
   }
 
