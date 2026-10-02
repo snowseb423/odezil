@@ -19,7 +19,7 @@ npm run lint        # ESLint
 npm run typecheck   # tsc --noEmit
 npm test            # Vitest (unitaires + RLS via PGlite)
 npm run build       # build de production
-npm run seed:admin  # insère ADMIN_EMAIL dans admin_allowlist (clé service_role, .env.local)
+npm run seed:admin  # allowlist + compte admin confirmé sans mot de passe (clé service_role, .env.local)
 ```
 
 Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run build`.
@@ -47,8 +47,11 @@ Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run 
 ## Sécurité (règles non négociables)
 
 1. **RLS activé sur toutes les tables**, aucun droit ni politique pour `anon`.
-2. **Piège Google OAuth** : n'importe quel compte Google obtient une session Supabase valide. Une session ne prouve donc rien. Toutes les politiques RLS (tables **et** bucket Storage) passent par `public.is_admin()`. Cette fonction `security definer` exige que l'email du JWT, en minuscules, figure dans `admin_allowlist`, qu'il corresponde à `auth.uid()` et que l'email soit confirmé.
-3. Côté serveur, après connexion et dans le proxy, le layout admin et **chaque server action** : email confirmé **et** égal à `ADMIN_EMAIL`. Sinon, déconnexion et message « Accès non autorisé ». Le proxy seul ne suffit jamais.
+2. **Piège Google OAuth** : n'importe quel compte Google obtient une session Supabase valide. Une session ne prouve donc rien. Toutes les politiques RLS (tables **et** bucket Storage) passent par `public.is_admin()`. Cette fonction `security definer` exige :
+   - que l'email du JWT, en minuscules, figure dans `admin_allowlist` ;
+   - qu'il corresponde à `auth.uid()` et que l'email soit confirmé ;
+   - que la session n'ait pas été ouverte par mot de passe (claim `amr`), ce qui empêche la prise de contrôle anticipée d'un compte pré-créé.
+3. Côté serveur, après connexion et dans le proxy, le layout admin et **chaque server action** : email confirmé **et** égal à `ADMIN_EMAIL`, et session non ouverte par mot de passe (`getClaims().amr`). Sinon, déconnexion et message « Accès non autorisé ». Le proxy seul ne suffit jamais.
 4. L'admin accède aux données **uniquement** via sa session (client `lib/supabase/server.ts`), donc sous RLS. La clé `service_role` sert seulement à la page `/p/[token]` et au script de seed. Jamais côté client, jamais en `NEXT_PUBLIC_`.
 5. Page `/p/[token]` :
    - rendue côté serveur. Le serveur hache le token avec HMAC-SHA256 et `SHARE_TOKEN_PEPPER`, puis appelle la RPC `share_snapshot`, exécutable par `service_role` uniquement ;
@@ -57,7 +60,9 @@ Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run 
 6. Tokens de partage : 32 octets aléatoires en base64url, seul le hash est stocké. Ils sont révocables et régénérables, avec un seul lien actif à la fois. Le lien complet n'est affiché qu'une fois.
 7. Bucket `bons-livraison` **privé**, politiques `is_admin()`, URLs signées courtes (60 s).
 8. Secrets uniquement dans les variables d'environnement (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAIL`, `SHARE_TOKEN_PEPPER`). Ne jamais commiter de secret ni de `.env*` autre que `.env.example`.
-9. Toute nouvelle table : `enable row level security`, `revoke all … from anon, authenticated`, grants minimaux à `authenticated`, politique `(select public.is_admin())`, et un test dans `tests/db/rls.test.ts`.
+9. Toute nouvelle table : `enable row level security`, `revoke all … from anon, authenticated`, grants minimaux à `authenticated` (et à `service_role` si un script en a besoin), politique `(select public.is_admin())`, et un test dans `tests/db/rls.test.ts`. Le banc teste les deux configurations Supabase : droits par défaut accordés et mode strict.
+10. Toute nouvelle fonction SQL : aucun droit implicite (`alter default privileges` retire EXECUTE à PUBLIC). Accorder explicitement `execute` au seul rôle qui en a besoin. Ne jamais l'accorder à `anon`.
+11. Le lien magique est envoyé sans cookie et après la réponse (`after`), pour ne pas révéler l'adresse admin. Ne pas réintroduire le client à cookies dans `sendMagicLink`.
 
 ## Hors périmètre
 
