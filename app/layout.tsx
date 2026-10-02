@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EauPartagée",
+  title: { default: "EauPartagée", template: "%s · EauPartagée" },
   description: "Suivi des bonbonnes d'eau partagées entre deux foyers",
+  icons: { icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }] },
 };
 
 export const viewport: Viewport = {

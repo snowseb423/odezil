@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { LOGIN_ERRORS, isAuthorizedAdmin, isLoginError } from "@/lib/auth-rules";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { adminEmail } from "@/lib/env";
+import { pwaMetadata } from "@/lib/pwa-metadata";
 import { createClient } from "@/lib/supabase/server";
 import { signInWithGoogle } from "./actions";
 import { MagicLinkForm } from "./magic-link-form";
 
 export const metadata: Metadata = {
+  ...pwaMetadata,
   title: "Connexion",
   robots: { index: false, follow: false },
 };
@@ -69,6 +72,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </summary>
         <MagicLinkForm />
       </details>
+      <ServiceWorkerRegistration />
     </main>
   );
 }
