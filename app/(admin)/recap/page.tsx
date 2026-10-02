@@ -56,12 +56,12 @@ export default async function RecapPage({ searchParams }: PageProps<"/recap">) {
           </div>
         )}
         <div className="flex justify-between gap-3">
-          <dt className="text-slate-600">Solde antérieur</dt>
-          <dd className="font-medium">{formatRs(recap.previousBalanceCents)}</dd>
+          <dt className="text-slate-600">{recap.previousBalanceCents < 0 ? "Crédit antérieur" : "Solde antérieur"}</dt>
+          <dd className="font-medium">{formatRs(Math.abs(recap.previousBalanceCents))}</dd>
         </div>
         <div className="flex justify-between gap-3 border-t border-slate-100 pt-2">
-          <dt className="font-semibold">Total à régler</dt>
-          <dd className="font-bold">{formatRs(recap.totalDueCents)}</dd>
+          <dt className="font-semibold">{recap.totalDueCents < 0 ? "Crédit du Cardinal" : "Total à régler"}</dt>
+          <dd className="font-bold">{formatRs(Math.abs(recap.totalDueCents))}</dd>
         </div>
       </dl>
     </main>

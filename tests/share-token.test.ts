@@ -70,6 +70,16 @@ describe("action generateShareLink", () => {
     expect(JSON.stringify(stored)).not.toContain(token);
   });
 
+  it("la révocation via le panneau remet l'état à zéro (plus de lien affiché)", async () => {
+    const { shareLinkAction } = await import("@/app/(admin)/parametres/actions");
+    const form = new FormData();
+    form.set("intent", "revoke");
+    const state = await shareLinkAction({ status: "created", url: "https://eau.example.app/p/x" }, form);
+    expect(state).toEqual({ status: "idle" });
+    expect(calls).toEqual(["revoke"]);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it("refuse de fonctionner sans pepper (échec fermé)", async () => {
     vi.stubEnv("SHARE_TOKEN_PEPPER", "");
     const { generateShareLink } = await import("@/app/(admin)/parametres/actions");

@@ -99,6 +99,14 @@ describe("message récapitulatif", () => {
     expect(recap.text).not.toContain("antérieur");
   });
 
+  it("élide « de » devant un mois commençant par une voyelle", () => {
+    expect(buildRecap("2026-08", { deliveries: [], soas: [], repayments: [] }).text).toBe(
+      "Bonjour, récap eau d'août 2026 : aucune bonbonne. Rien à régler. Merci !",
+    );
+    expect(buildRecap("2026-04", { deliveries: [], soas: [], repayments: [] }).text).toContain("récap eau d'avril 2026");
+    expect(buildRecap("2026-10", { deliveries: [], soas: [], repayments: [] }).text).toContain("récap eau d'octobre 2026");
+  });
+
   it("mois sans livraison pour le Cardinal", () => {
     const recap = buildRecap("2026-09", { deliveries: [delivery("2026-09-02", 3, 0)], soas: [], repayments: [] });
     expect(recap.text).toBe("Bonjour, récap eau de septembre 2026 : aucune bonbonne. Rien à régler. Merci !");

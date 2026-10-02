@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireAdmin } from "@/lib/auth";
 import { computeVariance, monthExpectedTotal } from "@/lib/calculations";
 import { fetchDeliveriesOfMonth, fetchSoaStatements } from "@/lib/data/admin";
-import { formatMonthFrCapitalized, monthKeyOf, todayIso } from "@/lib/dates";
+import { formatMonthFrCapitalized, formatOfMonthFr, monthKeyOf, todayIso } from "@/lib/dates";
 import { TREATMENT_SHORT_LABELS } from "@/lib/labels";
 import { centsToInputValue, formatRs, formatRsSigned } from "@/lib/money";
 import { monthParam, previousMonth } from "@/lib/search-params";
@@ -34,7 +34,7 @@ export default async function SoaPage({ searchParams }: PageProps<"/soa">) {
 
       {ok === "1" && existing && (
         <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center font-medium text-emerald-800">
-          SOA de {formatMonthFrCapitalized(month).toLowerCase()} enregistré.
+          SOA {formatOfMonthFr(month)} enregistré.
         </p>
       )}
 
@@ -65,7 +65,7 @@ export default async function SoaPage({ searchParams }: PageProps<"/soa">) {
           <input type="hidden" name="month" value={month} />
           <ConfirmSubmit
             label="Supprimer ce relevé"
-            message={`Supprimer le SOA de ${formatMonthFrCapitalized(month).toLowerCase()} ?`}
+            message={`Supprimer le SOA ${formatOfMonthFr(month)} ?`}
             className="btn btn-danger w-full"
           >
             <Trash2 className="h-5 w-5" aria-hidden="true" />

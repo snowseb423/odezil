@@ -4,12 +4,14 @@ import { useActionState } from "react";
 import { Ban, Link2 } from "lucide-react";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { CopyButton } from "@/components/copy-button";
-import { generateShareLink, revokeShareLink, type ShareLinkState } from "./actions";
+import { useHydrated } from "@/components/use-hydrated";
+import { shareLinkAction, type ShareLinkState } from "./actions";
 
 const initialState: ShareLinkState = { status: "idle" };
 
 export function ShareLinkPanel({ activeSince }: { activeSince: string | null }) {
-  const [state, action, pending] = useActionState(generateShareLink, initialState);
+  const [state, action, pending] = useActionState(shareLinkAction, initialState);
+  const hydrated = useHydrated();
 
   return (
     <div className="space-y-3">
@@ -38,7 +40,7 @@ export function ShareLinkPanel({ activeSince }: { activeSince: string | null }) 
         <button
           type="submit"
           className="btn btn-secondary w-full"
-          disabled={pending}
+          disabled={!hydrated || pending}
           onClick={(event) => {
             if (activeSince && !window.confirm("Générer un nouveau lien ? L'ancien cessera immédiatement de fonctionner.")) {
               event.preventDefault();
@@ -51,7 +53,8 @@ export function ShareLinkPanel({ activeSince }: { activeSince: string | null }) 
       </form>
 
       {activeSince && (
-        <form action={revokeShareLink}>
+        <form action={action}>
+          <input type="hidden" name="intent" value="revoke" />
           <ConfirmSubmit
             label="Révoquer le lien"
             message="Révoquer le lien ? La page du Cardinal ne sera plus accessible."

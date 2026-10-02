@@ -1,5 +1,6 @@
 "use client";
 
+import { unstable_rethrow } from "next/navigation";
 import { useState, useTransition } from "react";
 import { VARIANCE_TREATMENTS, computeVariance, type VarianceTreatment } from "@/lib/calculations";
 import { TREATMENT_LABELS } from "@/lib/labels";
@@ -32,9 +33,15 @@ export function SoaForm({ month, expectedTotal, initialTotal, initialTreatment, 
     if (!canSubmit) return;
     setError(null);
     startTransition(async () => {
-      const result = await saveSoa({ month, totalBilled: total, treatment: needsTreatment ? treatment : null, note });
-      // En cas de succès, l'action recharge la page.
-      if (result && !result.ok) setError(result.error);
+      try {
+        const result = await saveSoa({ month, totalBilled: total, treatment: needsTreatment ? treatment : null, note });
+        // En cas de succès, l'action recharge la page.
+        if (result && !result.ok) setError(result.error);
+      } catch (caught) {
+        // Succès : saveSoa redirige (NEXT_REDIRECT), à laisser passer.
+        unstable_rethrow(caught);
+        setError("Connexion impossible. Vérifiez le réseau et réessayez : votre saisie est conservée.");
+      }
     });
   }
 

@@ -14,7 +14,7 @@ import {
   type Repayment,
   type SoaStatement,
 } from "@/lib/calculations";
-import { formatMonthFr, monthKeyOf } from "@/lib/dates";
+import { formatOfMonthFr, monthKeyOf } from "@/lib/dates";
 import { formatRs, formatRsSigned, sumCents } from "@/lib/money";
 
 export type RecapPriceLine = { bottles: number; unitPriceCents: number; amountCents: number };
@@ -77,7 +77,7 @@ export function buildRecap(
       : `${lines
           .map((line) => `${bottlesLabel(line.bottles)} × ${formatRs(line.unitPriceCents)}`)
           .join(" + ")} = ${formatRs(deliveriesAmountCents)}`;
-  parts.push(`Bonjour, récap eau de ${formatMonthFr(month)} : ${consumption}.`);
+  parts.push(`Bonjour, récap eau ${formatOfMonthFr(month)} : ${consumption}.`);
 
   if (adjustmentCents !== 0) {
     parts.push(`Ajustement (relevé Odezil) : ${formatRsSigned(adjustmentCents)}.`);

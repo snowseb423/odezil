@@ -110,15 +110,21 @@ Puis dans Supabase (*Authentication > Sign In / Providers > Google*) :
 Dans Supabase (*Authentication > URL Configuration*) :
 
 - **Site URL** : l'URL de production Vercel, ex. `https://eaupartagee.vercel.app`.
-- **Redirect URLs**, une par ligne :
+- **Redirect URLs** : uniquement des URLs **exactes**, une par ligne :
   ```
-  https://eaupartagee.vercel.app/**
-  https://*-<votre-equipe-vercel>.vercel.app/**
-  http://localhost:3000/**
+  https://eaupartagee.vercel.app/auth/callback
+  http://localhost:3000/auth/callback
   ```
-  La deuxième ligne couvre les déploiements de preview. Remplacez `<votre-equipe-vercel>` par le slug de votre équipe ou compte Vercel, visible dans les URLs de preview.
 
 L'application envoie toujours `https://<hôte>/auth/callback` comme URL de retour. Supabase refuse toute URL absente de cette liste.
+
+> **N'ajoutez jamais de joker** du type `https://*.vercel.app/**` ou `https://*-<équipe>.vercel.app/**`. Chez Supabase, le `*` accepte aussi les tirets, et n'importe qui peut créer un projet Vercel nommé `x-<équipe>`. Un tiers obtiendrait alors un hôte accepté et pourrait y recevoir le code de connexion Google ou le lien magique de l'admin, c'est-à-dire un accès aux données de production.
+>
+> Pour tester la connexion sur une preview, deux options :
+> - ajoutez **temporairement** l'URL exacte de la branche (`https://eaupartagee-git-<branche>-<slug>.vercel.app/auth/callback`), puis retirez-la ;
+> - ou faites pointer l'environnement *Preview* de Vercel vers un projet Supabase distinct.
+>
+> Sans cela, la connexion échoue sur les previews : Supabase renvoie vers la Site URL. C'est voulu.
 
 ## 4. Lien magique de secours
 
@@ -193,7 +199,7 @@ N'utilisez jamais de mot de passe. Les sessions ouvertes par mot de passe (claim
 2. Avant le premier déploiement, ajoutez les variables d'environnement du § 5.
 3. Dans *Settings > Git*, la **Production Branch** est `main` :
    - chaque push sur `main` déploie la production ;
-   - chaque pull request reçoit un déploiement de preview.
+   - chaque pull request reçoit un déploiement de preview. La connexion n'y fonctionne pas par défaut (§ 3).
 4. Laissez activée la **Deployment Protection** (*Settings > Deployment Protection > Vercel Authentication*). Les previews utilisent la même base Supabase que la production : seules les personnes de votre équipe Vercel doivent pouvoir les ouvrir.
 5. Reportez l'URL de production dans la **Site URL** de Supabase (§ 3).
 

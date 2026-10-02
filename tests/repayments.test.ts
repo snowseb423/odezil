@@ -64,6 +64,8 @@ describe("action createRepayment", () => {
     const { createRepayment } = await import("@/app/(admin)/remboursements/actions");
     const state = await createRepayment({ error: null }, form({ repaymentDate: "2026-10-01", amount: "0" }));
     expect(state.error).toBe("Montant invalide (ex. 1 200,00)");
+    // La saisie est renvoyée pour ne pas vider le formulaire.
+    expect(state.values).toEqual({ repaymentDate: "2026-10-01", amount: "0", note: "" });
     expect(insert).not.toHaveBeenCalled();
   });
 });

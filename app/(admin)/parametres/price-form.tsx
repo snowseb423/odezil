@@ -18,6 +18,7 @@ export function PriceForm({ today }: { today: string }) {
           <input
             id="unit-price"
             name="unitPrice"
+            defaultValue={state.values?.unitPrice}
             className="input tabular-nums"
             inputMode="decimal"
             autoComplete="off"
@@ -29,7 +30,14 @@ export function PriceForm({ today }: { today: string }) {
           <label className="label" htmlFor="effective-from">
             À partir du
           </label>
-          <input id="effective-from" name="effectiveFrom" type="date" className="input" defaultValue={today} required />
+          <input
+            id="effective-from"
+            name="effectiveFrom"
+            type="date"
+            className="input"
+            defaultValue={state.values?.effectiveFrom ?? today}
+            required
+          />
         </div>
       </div>
       <p className="text-sm text-slate-600">Les livraisons déjà saisies gardent leur prix.</p>

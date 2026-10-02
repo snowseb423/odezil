@@ -21,7 +21,7 @@ export function RepaymentForm({ today }: { today: string }) {
             name="repaymentDate"
             type="date"
             className="input"
-            defaultValue={today}
+            defaultValue={state.values?.repaymentDate ?? today}
             max={today}
             required
           />
@@ -33,6 +33,7 @@ export function RepaymentForm({ today }: { today: string }) {
           <input
             id="repayment-amount"
             name="amount"
+            defaultValue={state.values?.amount}
             className="input tabular-nums"
             inputMode="decimal"
             autoComplete="off"
@@ -48,6 +49,7 @@ export function RepaymentForm({ today }: { today: string }) {
         <input
           id="repayment-note"
           name="note"
+          defaultValue={state.values?.note}
           className="input text-base"
           maxLength={MAX_REPAYMENT_NOTE_LENGTH}
           placeholder="Espèces, virement, juillet + août…"

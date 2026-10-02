@@ -1,5 +1,6 @@
 "use client";
 
+import { unstable_rethrow } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { priceInEffect, type PriceSetting } from "@/lib/calculations";
@@ -10,6 +11,8 @@ import { formatRs } from "@/lib/money";
 import { createClient } from "@/lib/supabase/browser";
 import { Stepper } from "@/components/stepper";
 import { createDelivery } from "./actions";
+
+const NETWORK_ERROR = "Connexion impossible. Vérifiez le réseau et réessayez : votre saisie est conservée.";
 
 type DeliveryFormProps = {
   prices: PriceSetting[];
@@ -66,7 +69,15 @@ export function DeliveryForm({ prices, today, defaultBottlesA, defaultBottlesB }
         // En cas de succès, l'action redirige vers l'accueil.
         if (result && !result.ok) setError(result.error);
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "Enregistrement impossible.");
+        // Succès : createDelivery redirige (NEXT_REDIRECT), à laisser passer.
+        unstable_rethrow(caught);
+        setError(
+          caught instanceof TypeError
+            ? NETWORK_ERROR
+            : caught instanceof Error
+              ? caught.message
+              : "Enregistrement impossible.",
+        );
       }
     });
   }

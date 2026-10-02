@@ -88,6 +88,12 @@ export function formatMonthFrCapitalized(monthKey: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/** `2026-09` → `de septembre 2026`, `2026-08` → `d'août 2026` (élision devant une voyelle). */
+export function formatOfMonthFr(monthKey: string): string {
+  const label = formatMonthFr(monthKey);
+  return /^[aeiouâéèêîôû]/i.test(label) ? `d'${label}` : `de ${label}`;
+}
+
 /** `2026-09-02` → `2 septembre 2026`. */
 export function formatDateFr(isoDate: string): string {
   if (!isIsoDate(isoDate)) throw new RangeError(`Date invalide : ${isoDate}`);
