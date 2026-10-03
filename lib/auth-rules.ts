@@ -31,6 +31,8 @@ export function isAuthorizedAdmin(
 export const LOGIN_ERRORS = {
   unauthorized: "Accès non autorisé : ce compte ne peut pas utiliser l'application.",
   auth: "La connexion a échoué ou le lien a expiré. Réessayez.",
+  config:
+    "Configuration du serveur incomplète : la connexion est impossible. Complétez les variables d'environnement (sur Vercel), puis redéployez.",
 } as const;
 
 export type LoginError = keyof typeof LOGIN_ERRORS;

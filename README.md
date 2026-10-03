@@ -22,15 +22,16 @@ Elle ne gère aucun paiement en ligne.
 3. [Créer le projet Supabase et appliquer les migrations](#1-créer-le-projet-supabase-et-appliquer-les-migrations)
 4. [Configurer Google OAuth](#2-configurer-google-oauth)
 5. [URLs de redirection Supabase](#3-urls-de-redirection-supabase)
-6. [Lien magique de secours](#4-lien-magique-de-secours-recommandé)
+6. [Lien magique de secours](#4-lien-magique-de-secours)
 7. [Variables d'environnement](#5-variables-denvironnement)
 8. [Autoriser l'adresse admin](#6-autoriser-ladresse-admin)
 9. [Verrouiller les inscriptions](#7-verrouiller-les-inscriptions)
 10. [Déployer sur Vercel](#8-déployer-sur-vercel)
-11. [Utilisation](#utilisation)
-12. [Tests](#tests)
-13. [Sécurité](#sécurité)
-14. [Choix de conception](#choix-de-conception)
+11. [Dépannage](#dépannage)
+12. [Utilisation](#utilisation)
+13. [Tests](#tests)
+14. [Sécurité](#sécurité)
+15. [Choix de conception](#choix-de-conception)
 
 ## Stack
 
@@ -151,7 +152,11 @@ Pour ne pas révéler l'adresse admin, l'application envoie ce lien sans cookie 
 | `SHARE_TOKEN_PEPPER` | `openssl rand -base64 32` | non |
 
 - **En local** : dans `.env.local`, jamais commité grâce à `.gitignore`.
-- **Sur Vercel** : *Project > Settings > Environment Variables*. Ajoutez les 5 variables pour **Production** et **Preview**.
+- **Sur Vercel** : *Project > Settings > Environment Variables*. Ajoutez les 5 variables pour **Production** et **Preview**, puis **redéployez** : une variable ajoutée ou modifiée n'est prise en compte qu'au déploiement suivant (*Deployments > ⋯ > Redeploy*).
+
+**Intégration Vercel ↔ Supabase.** Si vous avez relié les deux depuis Vercel, l'intégration crée déjà les variables Supabase. L'application accepte les deux nommages : `NEXT_PUBLIC_SUPABASE_ANON_KEY` ou `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, et `SUPABASE_SERVICE_ROLE_KEY` ou `SUPABASE_SECRET_KEY`. En revanche, **`ADMIN_EMAIL` et `SHARE_TOKEN_PEPPER` ne sont jamais créées par l'intégration** : ajoutez-les vous-même.
+
+Saisissez `ADMIN_EMAIL` sans guillemets ni espaces (`vous@gmail.com`). Si une variable manque ou est invalide, la page de connexion l'indique dans un encadré (nom de la variable seulement, jamais sa valeur).
 
 Changer `SHARE_TOKEN_PEPPER` invalide le lien du Cardinal : il faudra en générer un nouveau.
 
@@ -212,6 +217,19 @@ Après le déploiement, sur votre téléphone, ouvrez l'URL de production puis f
 - [ ] Lien magique (« Problème avec Google ? ») reçu et fonctionnel depuis le téléphone.
 - [ ] Saisie d'une livraison avec photo, puis photo visible depuis l'historique.
 - [ ] Lien Cardinal généré (*Réglages*), ouvert en navigation privée : relevé visible. Après révocation : page 404.
+
+## Dépannage
+
+| Symptôme | Cause probable | Correction |
+| --- | --- | --- |
+| Encadré « Configuration du serveur incomplète » sur la page de connexion | Variable d'environnement manquante ou invalide (l'encadré la nomme) | L'ajouter sur Vercel (§ 5), puis redéployer |
+| Erreur 500 au retour de Google, puis « La connexion a échoué ou le lien a expiré » (versions antérieures) | `ADMIN_EMAIL` absente côté serveur : le code Google était consommé, puis la page plantait | Ajouter `ADMIN_EMAIL` sur Vercel, puis redéployer |
+| « Accès non autorisé » avec votre propre compte | `ADMIN_EMAIL` ne correspond pas à l'adresse du compte Google choisi | Corriger `ADMIN_EMAIL` ou choisir le bon compte Google |
+| Connecté, mais encadré « La base de données ne reconnaît pas ce compte » et données vides | Adresse absente de `admin_allowlist` (ou en majuscules), ou compte non confirmé | `npm run seed:admin` (§ 6) |
+| Retour sur la page de connexion sans message après Google | L'URL `…/auth/callback` n'est pas dans les Redirect URLs : Supabase renvoie vers la Site URL | § 3 |
+| Page Google « redirect_uri_mismatch » | URI de redirection de l'ID client Google incorrecte | `https://<ref-projet>.supabase.co/auth/v1/callback` (§ 2) |
+
+Le détail technique d'une erreur figure dans les journaux Vercel (*Project > Logs*), jamais à l'écran.
 
 ---
 

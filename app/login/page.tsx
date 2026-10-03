@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Droplets } from "lucide-react";
 import { LOGIN_ERRORS, isAuthorizedAdmin, isLoginError } from "@/lib/auth-rules";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
-import { adminEmail } from "@/lib/env";
+import { adminEmail, configurationProblems } from "@/lib/env";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { createClient } from "@/lib/supabase/server";
 import { signInWithGoogle } from "./actions";
@@ -30,14 +30,20 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error } = await searchParams;
   const errorKey = Array.isArray(error) ? error[0] : error;
 
+  // Diagnostic de configuration : noms des variables seulement, jamais leurs valeurs.
+  const problems = configurationProblems();
+  const loginBlocked = problems.some((problem) => problem.blocksLogin);
+
   // Déjà connecté en tant qu'admin : direction l'accueil.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: claims } = user ? await supabase.auth.getClaims() : { data: null };
-  if (user && isAuthorizedAdmin(user, adminEmail(), claims?.claims.amr)) {
-    redirect("/");
+  if (!loginBlocked) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: claims } = user ? await supabase.auth.getClaims() : { data: null };
+    if (user && isAuthorizedAdmin(user, adminEmail(), claims?.claims.amr)) {
+      redirect("/");
+    }
   }
 
   return (
@@ -50,7 +56,25 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <p className="mt-2 text-slate-600">Suivi des bonbonnes Odezil</p>
       </div>
 
-      {isLoginError(errorKey) && (
+      {problems.length > 0 && (
+        <section role="alert" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">
+            {loginBlocked ? "Connexion impossible : configuration du serveur incomplète." : "Configuration du serveur incomplète."}
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {problems.map((problem) => (
+              <li key={problem.variable}>{problem.message}</li>
+            ))}
+          </ul>
+          <p className="mt-2">
+            Ajoutez ces variables dans Vercel (<em>Settings &gt; Environment Variables</em>, environnement Production), puis
+            redéployez. Voir le README, § 5.
+          </p>
+        </section>
+      )}
+
+      {/* « config » : l'encadré ci-dessus donne déjà le détail (ou le problème est corrigé). */}
+      {isLoginError(errorKey) && errorKey !== "config" && (
         <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center font-medium text-red-800">
           {LOGIN_ERRORS[errorKey]}
         </p>
@@ -59,7 +83,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <form action={signInWithGoogle}>
         <button
           type="submit"
-          className="flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-white px-6 text-lg font-semibold text-slate-900 shadow-sm transition active:scale-[0.98] active:bg-slate-50"
+          disabled={loginBlocked}
+          className="flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-white px-6 text-lg font-semibold text-slate-900 shadow-sm transition active:scale-[0.98] active:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <GoogleLogo />
           Se connecter avec Google

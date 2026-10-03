@@ -122,36 +122,36 @@ describe("GET /auth/callback", () => {
     const response = await callback("?code=abc");
     expect(currentClient.auth.exchangeCodeForSession).toHaveBeenCalledWith("abc");
     expect(currentClient.auth.signOut).not.toHaveBeenCalled();
-    expect(response.headers.get("location")).toBe("https://eau.example.app/");
+    expect(response.headers.get("location")).toBe("/");
   });
 
   it("compte Google non autorisé : déconnexion immédiate et « Accès non autorisé »", async () => {
     currentClient = fakeSupabase({ email: "intrus@gmail.com", email_confirmed_at: CONFIRMED });
     const response = await callback("?code=abc");
     expect(currentClient.auth.signOut).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+    expect(response.headers.get("location")).toBe("/login?error=unauthorized");
   });
 
   it("email admin non confirmé : refusé", async () => {
     currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: null });
     const response = await callback("?code=abc");
     expect(currentClient.auth.signOut).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+    expect(response.headers.get("location")).toBe("/login?error=unauthorized");
   });
 
   it("lien magique (token_hash) de l'admin : accepté", async () => {
     currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
     const response = await callback("?token_hash=th&type=email");
     expect(currentClient.auth.verifyOtp).toHaveBeenCalledWith({ type: "email", token_hash: "th" });
-    expect(response.headers.get("location")).toBe("https://eau.example.app/");
+    expect(response.headers.get("location")).toBe("/");
   });
 
   it("code invalide ou absent : erreur de connexion, sans session", async () => {
     currentClient = fakeSupabase(null, { exchangeError: true });
-    expect((await callback("?code=bad")).headers.get("location")).toBe("https://eau.example.app/login?error=auth");
-    expect((await callback("")).headers.get("location")).toBe("https://eau.example.app/login?error=auth");
+    expect((await callback("?code=bad")).headers.get("location")).toBe("/login?error=auth");
+    expect((await callback("")).headers.get("location")).toBe("/login?error=auth");
     expect((await callback("?token_hash=x&type=recovery")).headers.get("location")).toBe(
-      "https://eau.example.app/login?error=auth",
+      "/login?error=auth",
     );
   });
 
@@ -162,28 +162,53 @@ describe("GET /auth/callback", () => {
     );
     const response = await callback("?code=abc");
     expect(currentClient.auth.signOut).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+    expect(response.headers.get("location")).toBe("/login?error=unauthorized");
   });
 
   it("compte refusé par Supabase (hook ou inscriptions fermées) : « Accès non autorisé »", async () => {
     currentClient = fakeSupabase(null);
     const hook = await callback("?error=access_denied&error_code=&error_description=Acc%C3%A8s+non+autoris%C3%A9");
-    expect(hook.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+    expect(hook.headers.get("location")).toBe("/login?error=unauthorized");
     const closed = await callback(
       "?error=access_denied&error_code=signup_disabled&error_description=Signups+not+allowed+for+this+instance",
     );
-    expect(closed.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+    expect(closed.headers.get("location")).toBe("/login?error=unauthorized");
     // Annulation chez Google : simple erreur de connexion.
     const cancelled = await callback("?error=access_denied&error_description=The+user+denied+the+request");
-    expect(cancelled.headers.get("location")).toBe("https://eau.example.app/login?error=auth");
+    expect(cancelled.headers.get("location")).toBe("/login?error=auth");
     expect(currentClient.auth.exchangeCodeForSession).not.toHaveBeenCalled();
     expect(currentClient.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it("redirige en relatif : le navigateur reste sur l'hôte où la session est posée", async () => {
+    currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
+    const { GET } = await import("@/app/auth/callback/route");
+    // Derrière un proxy, request.url peut porter un autre hôte (ex. localhost).
+    const response = await GET(new NextRequest("http://localhost:3000/auth/callback?code=abc"));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("/");
+  });
+
+  it("configuration incomplète (ADMIN_EMAIL absente) : refus explicite, le code n'est PAS consommé", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "");
+    currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
+    const response = await callback("?code=abc");
+    expect(response.headers.get("location")).toBe("/login?error=config");
+    expect(currentClient.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it("ADMIN_EMAIL saisie avec des guillemets : refus explicite plutôt qu'un faux « non autorisé »", async () => {
+    vi.stubEnv("ADMIN_EMAIL", '"admin@example.com"');
+    currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
+    const response = await callback("?code=abc");
+    expect(response.headers.get("location")).toBe("/login?error=config");
+    expect(currentClient.auth.exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
   it("ignore tout paramètre de redirection fourni (pas de redirection ouverte)", async () => {
     currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
     const response = await callback("?code=abc&next=https://evil.example.com");
-    expect(response.headers.get("location")).toBe("https://eau.example.app/");
+    expect(response.headers.get("location")).toBe("/");
   });
 });
 
@@ -215,6 +240,15 @@ describe("proxy (protection des routes admin)", () => {
     const response = await visit("/");
     expect(currentClient.auth.signOut).toHaveBeenCalledTimes(1);
     expect(response.headers.get("location")).toBe("https://eau.example.app/login?error=unauthorized");
+  });
+
+  it("configuration incomplète : renvoi vers /login?error=config, sans erreur 500", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "");
+    currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
+    const response = await visit("/historique");
+    expect(response.headers.get("location")).toBe("https://eau.example.app/login?error=config");
+    const login = await visit("/login");
+    expect(login.headers.get("location")).toBeNull();
   });
 
   it("admin : accès autorisé", async () => {
@@ -285,6 +319,13 @@ describe("lien magique de secours", () => {
     expect(createClient).toHaveBeenCalledWith("https://ref.supabase.co", "anon-key", {
       auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
+  });
+
+  it("configuration incomplète : rien n'est envoyé, message explicite", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "");
+    const result = await submit(ADMIN_EMAIL);
+    expect(result.status).toBe("invalid");
+    expect(statelessSignInWithOtp).not.toHaveBeenCalled();
   });
 
   it("refuse une saisie qui n'est pas un email", async () => {

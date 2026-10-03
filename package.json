@@ -14,7 +14,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "node --env-file-if-exists=.env.local scripts/seed-admin.mjs"
+    "seed:admin": "node --env-file-if-exists=.env.local scripts/seed-admin.mjs",
+    "postbuild": "node scripts/check-dynamic-routes.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

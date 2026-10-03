@@ -42,6 +42,8 @@ Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run 
 - Rien n'est stocké en double : totaux et soldes sont calculés. Seul `variance_cents` (écart SOA) est figé à l'enregistrement du SOA, conformément au cahier des charges. `unit_price_cents_applied` est figé par un trigger à l'insertion d'une livraison.
 - Les livraisons et les remboursements ne se modifient pas : on les supprime puis on les ressaisit.
 - Mutations par server actions validées avec zod ; chaque action appelle `requireAdmin()` en premier.
+- Les pages admin et la page Cardinal sont **toujours dynamiques**. `requireAdmin()` appelle `connection()` avant tout contrôle : un `redirect()` exécuté avant une API dynamique serait figé au build dans une page statique. `npm run build` lance ensuite `scripts/check-dynamic-routes.mjs`, qui échoue si une de ces pages est prérendue.
+- Configuration absente ou invalide : échec fermé, sans erreur 500. `lib/env.ts` lève `ConfigurationError` ; le proxy, `requireAdmin()` et le callback renvoient vers `/login?error=config`, et `/login` affiche les noms des variables en cause, jamais leurs valeurs.
 - Commits conventionnels : `feat:`, `fix:`, `test:`, `chore:`, `docs:`.
 
 ## Sécurité (règles non négociables)

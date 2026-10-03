@@ -1,13 +1,18 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedAdmin } from "@/lib/auth-rules";
-import { adminEmail } from "@/lib/env";
+import { adminEmail, loginConfigurationProblems } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 const EMAIL_OTP_TYPES: readonly EmailOtpType[] = ["email", "magiclink"];
 
-function redirectTo(request: NextRequest, path: string) {
-  return NextResponse.redirect(new URL(path, request.url));
+/**
+ * Redirection relative (`Location: /…`) : le navigateur reste sur l'hôte qu'il
+ * a demandé, où les cookies de session viennent d'être posés. `request.url`
+ * peut porter un autre hôte derrière un proxy (ex. `localhost`).
+ */
+function redirectTo(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }
 
 /**
@@ -23,6 +28,14 @@ export async function GET(request: NextRequest) {
   const code = params.get("code");
   const tokenHash = params.get("token_hash");
   const type = params.get("type");
+
+  // Configuration vérifiée AVANT d'utiliser le code (à usage unique) : sinon
+  // l'échange réussit, la page plante, et la tentative suivante échoue.
+  const problems = loginConfigurationProblems();
+  if (problems.length > 0) {
+    console.error(`Connexion impossible, configuration incomplète : ${problems.map((p) => p.message).join(" ; ")}`);
+    return redirectTo("/login?error=config");
+  }
 
   const supabase = await createClient();
 
@@ -41,11 +54,11 @@ export async function GET(request: NextRequest) {
     // donc pas à `error` seul.
     const refused =
       params.get("error_code") === "signup_disabled" || params.get("error_description") === "Accès non autorisé";
-    return redirectTo(request, refused ? "/login?error=unauthorized" : "/login?error=auth");
+    return redirectTo(refused ? "/login?error=unauthorized" : "/login?error=auth");
   }
 
   if (exchangeError) {
-    return redirectTo(request, "/login?error=auth");
+    return redirectTo("/login?error=auth");
   }
 
   const {
@@ -55,8 +68,8 @@ export async function GET(request: NextRequest) {
 
   if (!isAuthorizedAdmin(user, adminEmail(), claims?.claims.amr)) {
     await supabase.auth.signOut();
-    return redirectTo(request, "/login?error=unauthorized");
+    return redirectTo("/login?error=unauthorized");
   }
 
-  return redirectTo(request, "/");
+  return redirectTo("/");
 }
