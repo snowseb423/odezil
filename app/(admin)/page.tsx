@@ -13,6 +13,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { ok } = await searchParams;
   const notice = noticeFor(ok);
 
+  // Diagnostic : la base (RLS) reconnaît-elle ce compte comme admin ? Sinon,
+  // l'application s'ouvre mais toutes les données restent vides.
+  const { data: dbAdmin } = await supabase.rpc("is_admin");
+
   const { deliveries, soas, repayments } = await fetchLedger(supabase);
   const balance = balanceB({ deliveries, adjustments: adjustmentsForB(soas), repayments });
   const pendingVariances = soas.filter((soa) => soa.varianceCents !== 0 && soa.varianceTreatment === "pending").length;
@@ -23,6 +27,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center font-medium text-emerald-800">
           {notice}
         </p>
+      )}
+
+      {dbAdmin !== true && (
+        <section role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">La base de données ne reconnaît pas ce compte comme administrateur.</p>
+          <p className="mt-1">
+            Les données restent invisibles et les saisies sont refusées. Vérifiez que votre adresse figure, en minuscules,
+            dans la table <code>admin_allowlist</code> et que votre compte est confirmé : lancez <code>npm run seed:admin</code>{" "}
+            (README, § 6).
+          </p>
+        </section>
       )}
 
       <section className="rounded-3xl bg-sky-700 p-6 text-white shadow-lg">

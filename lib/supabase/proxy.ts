@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedAdmin } from "@/lib/auth-rules";
-import { adminEmail, supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { adminEmail, loginConfigurationProblems, supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
 /** Chemins accessibles sans session admin (le proxy y rafraîchit seulement la session). */
 const PUBLIC_PATHS = ["/login"];
@@ -37,6 +37,15 @@ function redirectKeepingSession(request: NextRequest, from: NextResponse, pathna
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
+
+  // Configuration incomplète : personne ne peut être autorisé. /login affiche
+  // le diagnostic ; toute autre page y renvoie (échec fermé, pas d'erreur 500).
+  const problems = loginConfigurationProblems();
+  if (problems.length > 0) {
+    if (isPublicPath(request.nextUrl.pathname)) return response;
+    console.error(`Accès refusé, configuration incomplète : ${problems.map((p) => p.message).join(" ; ")}`);
+    return redirectKeepingSession(request, response, "/login", "?error=config");
+  }
 
   const supabase = createServerClient(supabaseUrl(), supabaseAnonKey(), {
     cookies: {

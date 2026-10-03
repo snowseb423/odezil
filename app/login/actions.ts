@@ -5,12 +5,15 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { normalizeEmail } from "@/lib/auth-rules";
-import { adminEmail, supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { adminEmail, loginConfigurationProblems, supabaseAnonKey, supabaseUrl } from "@/lib/env";
 import { requestOrigin } from "@/lib/request-origin";
 import { createClient } from "@/lib/supabase/server";
 
 /** Connexion principale : Google OAuth (flux PKCE via @supabase/ssr). */
 export async function signInWithGoogle(): Promise<void> {
+  if (loginConfigurationProblems().length > 0) {
+    redirect("/login?error=config");
+  }
   const supabase = await createClient();
   const origin = await requestOrigin();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -49,6 +52,10 @@ export async function sendMagicLink(_previous: MagicLinkState, formData: FormDat
   const parsed = MagicLinkSchema.safeParse({ email: String(formData.get("email") ?? "").trim() });
   if (!parsed.success) {
     return { status: "invalid", message: "Adresse email invalide." };
+  }
+
+  if (loginConfigurationProblems().length > 0) {
+    return { status: "invalid", message: "Configuration du serveur incomplète : connexion impossible pour le moment." };
   }
 
   const admin = adminEmail();
