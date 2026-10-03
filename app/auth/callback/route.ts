@@ -15,6 +15,11 @@ function redirectTo(path: string) {
   return new NextResponse(null, { status: 307, headers: { Location: path } });
 }
 
+/** Valeur de paramètre d'URL réduite pour les journaux (une ligne, longueur bornée). */
+function forLog(value: string | null): string {
+  return (value ?? "").replace(/[\r\n\t]+/g, " ").slice(0, 200);
+}
+
 /**
  * Retour de connexion :
  * - `?code=…` : flux PKCE (Google OAuth, ou lien magique avec le modèle d'email par défaut) ;
@@ -52,12 +57,26 @@ export async function GET(request: NextRequest) {
     // ou hook « Before User Created » (message défini dans 20261002000400_auth_hook.sql).
     // Une annulation chez Google renvoie aussi error=access_denied : on ne se fie
     // donc pas à `error` seul.
+    // Le détail n'est jamais affiché tel quel (paramètres d'URL modifiables par
+    // n'importe qui) : il part dans les journaux Vercel, l'écran garde un message fixe.
+    const error = params.get("error");
+    if (error) {
+      console.error(
+        `Retour de Supabase Auth en erreur : error=${forLog(error)} error_code=${forLog(params.get("error_code"))} ` +
+          `description=${forLog(params.get("error_description"))}`,
+      );
+    }
     const refused =
       params.get("error_code") === "signup_disabled" || params.get("error_description") === "Accès non autorisé";
-    return redirectTo(refused ? "/login?error=unauthorized" : "/login?error=auth");
+    // server_error : échec interne de Supabase Auth (ex. secret Google invalide,
+    // « Unable to exchange external code »), à ne pas présenter comme un lien expiré.
+    const target = refused ? "unauthorized" : error === "server_error" ? "provider" : "auth";
+    return redirectTo(`/login?error=${target}`);
   }
 
   if (exchangeError) {
+    const { code: errorCode, message } = exchangeError as { code?: string; message?: string };
+    console.error(`Échange du code de connexion refusé : ${forLog(errorCode ?? null)} ${forLog(message ?? null)}`);
     return redirectTo("/login?error=auth");
   }
 

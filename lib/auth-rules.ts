@@ -31,6 +31,8 @@ export function isAuthorizedAdmin(
 export const LOGIN_ERRORS = {
   unauthorized: "Accès non autorisé : ce compte ne peut pas utiliser l'application.",
   auth: "La connexion a échoué ou le lien a expiré. Réessayez.",
+  provider:
+    "Supabase n'a pas pu finaliser la connexion Google (erreur du service d'authentification). Vérifiez l'ID client et le secret Google dans Supabase (README, § 2), puis réessayez.",
   config:
     "Configuration du serveur incomplète : la connexion est impossible. Complétez les variables d'environnement (sur Vercel), puis redéployez.",
 } as const;
