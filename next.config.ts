@@ -9,6 +9,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // CLAUDE.md est maintenu à la main : `next dev` ne doit pas y ajouter son bloc.
+  agentRules: false,
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
