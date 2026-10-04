@@ -106,6 +106,8 @@ describe("isAuthorizedAdmin", () => {
   it("codes d'erreur de connexion connus uniquement", () => {
     expect(isLoginError("unauthorized")).toBe(true);
     expect(isLoginError("auth")).toBe(true);
+    expect(isLoginError("provider")).toBe(true);
+    expect(isLoginError("config")).toBe(true);
     expect(isLoginError("toString")).toBe(false);
     expect(isLoginError(undefined)).toBe(false);
   });
@@ -203,6 +205,21 @@ describe("GET /auth/callback", () => {
     const response = await callback("?code=abc");
     expect(response.headers.get("location")).toBe("/login?error=config");
     expect(currentClient.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it("erreur interne de Supabase Auth (ex. secret Google faux) : message dédié et journalisé, pas « lien expiré »", async () => {
+    currentClient = fakeSupabase(null);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = await callback(
+      "?error=server_error&error_code=unexpected_failure&error_description=Unable+to+exchange+external+code%3A+4%2F0A%0AFAUX",
+    );
+    expect(response.headers.get("location")).toBe("/login?error=provider");
+    expect(currentClient.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    const line = String(logged.mock.calls[0]?.[0]);
+    expect(line).toContain("error=server_error");
+    expect(line).toContain("Unable to exchange external code");
+    expect(line).not.toContain("\n");
+    logged.mockRestore();
   });
 
   it("ignore tout paramètre de redirection fourni (pas de redirection ouverte)", async () => {

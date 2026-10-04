@@ -228,6 +228,8 @@ Après le déploiement, sur votre téléphone, ouvrez l'URL de production puis f
 | Connecté, mais encadré « La base de données ne reconnaît pas ce compte » et données vides | Adresse absente de `admin_allowlist` (ou en majuscules), ou compte non confirmé | `npm run seed:admin` (§ 6) |
 | Retour sur la page de connexion sans message après Google | L'URL `…/auth/callback` n'est pas dans les Redirect URLs : Supabase renvoie vers la Site URL | § 3 |
 | Page Google « redirect_uri_mismatch » | URI de redirection de l'ID client Google incorrecte | `https://<ref-projet>.supabase.co/auth/v1/callback` (§ 2) |
+| « Supabase n'a pas pu finaliser la connexion Google » ; dans les journaux Supabase (*Logs > Auth*) : `Unable to exchange external code` | Secret client Google faux, ou secret d'un autre client que l'ID saisi | Recopier l'ID et le secret du même client Google dans Supabase (§ 2) |
+| Même message, journaux Supabase : `Database error saving new user` | Trigger sur `auth.users` ou hook en erreur (import SQL étranger au projet) | Supprimer le trigger ou désactiver le hook ; `npm run seed:admin` évite la création de compte au premier login |
 
 Le détail technique d'une erreur figure dans les journaux Vercel (*Project > Logs*), jamais à l'écran.
 
