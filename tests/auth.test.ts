@@ -327,7 +327,7 @@ describe("lien magique de secours", () => {
       options: { emailRedirectTo: "https://eau.example.app/auth/callback", shouldCreateUser: false },
     });
     const other = await submit("intrus@gmail.com");
-    expect(admin).toEqual(other);
+    expect(admin).toEqual({ ...other, email: ADMIN_EMAIL });
   });
 
   it("utilise un client sans stockage (flux implicite, aucun cookie)", async () => {
@@ -348,5 +348,67 @@ describe("lien magique de secours", () => {
   it("refuse une saisie qui n'est pas un email", async () => {
     expect((await submit("pas-un-email")).status).toBe("invalid");
     expect(statelessSignInWithOtp).not.toHaveBeenCalled();
+  });
+});
+
+describe("connexion par code (app installée sur l'écran d'accueil)", () => {
+  async function submit(email: string, code: string) {
+    const { verifyLoginCode } = await import("@/app/login/actions");
+    const form = new FormData();
+    form.set("email", email);
+    form.set("code", code);
+    try {
+      return { state: await verifyLoginCode({ status: "idle" }, form), redirectedTo: null };
+    } catch (error) {
+      // redirect() lève NEXT_REDIRECT;<type>;<url>;<status>;
+      const digest = (error as { digest?: string }).digest ?? "";
+      if (!digest.startsWith("NEXT_REDIRECT")) throw error;
+      return { state: null, redirectedTo: digest.split(";")[2] };
+    }
+  }
+
+  it("admin avec un bon code : session ouverte dans l'app, redirection vers l'accueil", async () => {
+    currentClient = fakeSupabase(
+      { email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED },
+      { amr: [{ method: "otp", timestamp: 1 }] },
+    );
+    const result = await submit("Admin@Example.com", "123 456");
+    expect(currentClient.auth.verifyOtp).toHaveBeenCalledWith({ email: ADMIN_EMAIL, token: "123456", type: "email" });
+    expect(currentClient.auth.signOut).not.toHaveBeenCalled();
+    expect(result.redirectedTo).toBe("/");
+  });
+
+  it("code faux ou expiré : message, pas de session", async () => {
+    currentClient = fakeSupabase(null, { exchangeError: true });
+    const result = await submit(ADMIN_EMAIL, "000000");
+    expect(result.state?.status).toBe("invalid");
+    expect(result.redirectedTo).toBeNull();
+  });
+
+  it("adresse non autorisée : même réponse, Supabase n'est pas sollicité", async () => {
+    currentClient = fakeSupabase(null, { exchangeError: true });
+    const wrongCode = await submit(ADMIN_EMAIL, "000000");
+    currentClient = fakeSupabase({ email: "intrus@gmail.com", email_confirmed_at: CONFIRMED });
+    const intruder = await submit("intrus@gmail.com", "123456");
+    expect(currentClient.auth.verifyOtp).not.toHaveBeenCalled();
+    expect(intruder).toEqual(wrongCode);
+  });
+
+  it("session ouverte par mot de passe : déconnexion et accès refusé", async () => {
+    currentClient = fakeSupabase(
+      { email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED },
+      { amr: [{ method: "password", timestamp: 1 }] },
+    );
+    const result = await submit(ADMIN_EMAIL, "123456");
+    expect(currentClient.auth.signOut).toHaveBeenCalled();
+    expect(result.redirectedTo).toBe("/login?error=unauthorized");
+  });
+
+  it("refuse un code mal formé sans appeler Supabase", async () => {
+    currentClient = fakeSupabase({ email: ADMIN_EMAIL, email_confirmed_at: CONFIRMED });
+    for (const code of ["", "12345", "abcdef", "12345678901"]) {
+      expect((await submit(ADMIN_EMAIL, code)).state?.status).toBe("invalid");
+    }
+    expect(currentClient.auth.verifyOtp).not.toHaveBeenCalled();
   });
 });

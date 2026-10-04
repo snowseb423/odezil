@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* App lancée depuis l'écran d'accueil (PWA installée). */
+@custom-variant standalone (@media (display-mode: standalone));
+
 :root {
   --background: #f5f7fa;
   --foreground: #0f172a;

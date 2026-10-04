@@ -22,7 +22,7 @@ Elle ne gère aucun paiement en ligne.
 3. [Créer le projet Supabase et appliquer les migrations](#1-créer-le-projet-supabase-et-appliquer-les-migrations)
 4. [Configurer Google OAuth](#2-configurer-google-oauth)
 5. [URLs de redirection Supabase](#3-urls-de-redirection-supabase)
-6. [Lien magique de secours](#4-lien-magique-de-secours)
+6. [Code et lien magique par email](#4-code-et-lien-magique-par-email)
 7. [Variables d'environnement](#5-variables-denvironnement)
 8. [Autoriser l'adresse admin](#6-autoriser-ladresse-admin)
 9. [Verrouiller les inscriptions](#7-verrouiller-les-inscriptions)
@@ -127,19 +127,22 @@ L'application envoie toujours `https://<hôte>/auth/callback` comme URL de retou
 >
 > Sans cela, la connexion échoue sur les previews : Supabase renvoie vers la Site URL. C'est voulu.
 
-## 4. Lien magique de secours
+## 4. Code et lien magique par email
 
-Le lien magique sert de secours si Google est indisponible. Il n'est envoyé qu'à `ADMIN_EMAIL` et uniquement pour un compte **déjà existant** (créé par `npm run seed:admin`, voir § 6).
+L'email de connexion sert de secours si Google est indisponible, et c'est **la seule méthode dans l'app installée sur l'écran d'accueil d'un iPhone**. iOS y ouvre Google dans une vue Safari séparée, dont la session est perdue à la fermeture de l'app ; un lien ouvert depuis Mail se connecte dans Safari, pas dans l'app. La page de connexion masque donc Google en mode app installée et propose le code à 6 chiffres, saisi sans quitter l'app.
 
-Pour ne pas révéler l'adresse admin, l'application envoie ce lien sans cookie (flux `token_hash`). Il faut donc **remplacer le modèle d'email** dans *Authentication > Emails > Magic Link* :
+L'email n'est envoyé qu'à `ADMIN_EMAIL` et uniquement pour un compte **déjà existant** (créé par `npm run seed:admin`, voir § 6).
+
+Pour ne pas révéler l'adresse admin, l'application l'envoie sans cookie (flux `token_hash`). Il faut donc **remplacer le modèle d'email** dans *Authentication > Emails > Magic Link*, en gardant le code `{{ .Token }}` :
 
 ```html
 <h2>Connexion à EauPartagée</h2>
-<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Se connecter</a></p>
-<p>Ce lien expire rapidement et ne sert qu'une fois.</p>
+<p>Votre code : <strong style="font-size:24px;letter-spacing:4px">{{ .Token }}</strong></p>
+<p>Ou, depuis un navigateur : <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">se connecter</a></p>
+<p>Ce code et ce lien expirent rapidement et ne servent qu'une fois.</p>
 ```
 
-`{{ .RedirectTo }}` vaut `https://<hôte>/auth/callback`. Ce lien fonctionne même s'il est ouvert depuis l'application mail du téléphone. Avec le modèle par défaut, le lien magique ne permettrait pas de se connecter.
+`{{ .RedirectTo }}` vaut `https://<hôte>/auth/callback`. Le lien fonctionne même s'il est ouvert depuis l'application mail du téléphone, mais connecte alors Safari, pas l'app installée. Avec le modèle par défaut, ni le code ni le lien ne permettraient de se connecter.
 
 ## 5. Variables d'environnement
 

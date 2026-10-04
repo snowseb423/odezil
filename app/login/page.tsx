@@ -80,7 +80,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </p>
       )}
 
-      <form action={signInWithGoogle}>
+      {/*
+        App installée (écran d'accueil) : pas de Google. iOS ouvrirait Google dans
+        une vue Safari séparée, dont la session est perdue à la fermeture de
+        l'app ; le code par email se saisit sans quitter l'application.
+      */}
+      <form action={signInWithGoogle} className="standalone:hidden">
         <button
           type="submit"
           disabled={loginBlocked}
@@ -91,12 +96,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </button>
       </form>
 
-      <details className="mt-10 rounded-xl border border-slate-200 bg-white/60 p-4 text-sm">
-        <summary className="cursor-pointer font-medium text-slate-700">
-          Problème avec Google ? Recevoir un lien par email
-        </summary>
+      <section className="mt-10 rounded-xl border border-slate-200 bg-white/60 p-4 text-sm standalone:mt-0">
+        <h2 className="font-medium text-slate-700">
+          <span className="standalone:hidden">Problème avec Google ? Recevoir un code par email</span>
+          <span className="hidden standalone:inline">Connexion par code reçu par email</span>
+        </h2>
         <MagicLinkForm />
-      </details>
+      </section>
       <ServiceWorkerRegistration />
     </main>
   );

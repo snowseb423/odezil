@@ -6,7 +6,7 @@ PWA mobile-first qui suit les livraisons de bonbonnes d'eau Odezil partagées en
 
 - Next.js 16 (App Router), React 19, TypeScript strict (`noUncheckedIndexedAccess`), Tailwind CSS 4.
 - **Next 16 n'est pas le Next de vos souvenirs** : lire `node_modules/next/dist/docs/` avant d'utiliser une API. Le middleware s'appelle désormais `proxy.ts` (fonction `proxy`). `next lint` n'existe plus, `npm run lint` lance `eslint .`.
-- Supabase : Postgres, Auth (provider Google + lien magique de secours), Storage. Migrations dans `supabase/migrations/`.
+- Supabase : Postgres, Auth (provider Google + code ou lien magique par email, seule méthode dans la PWA iOS installée), Storage. Migrations dans `supabase/migrations/`.
 - `@supabase/ssr` pour les sessions par cookies (flux PKCE), `zod` pour la validation serveur.
 - Tests : Vitest. Les tests base de données utilisent **PGlite** (Postgres en WASM), sans Docker. Ils appliquent les vraies migrations par-dessus `tests/db/supabase-stubs.sql`, qui imite les schémas `auth` et `storage` et les rôles Supabase.
 - Déploiement : Vercel via l'intégration GitHub.
