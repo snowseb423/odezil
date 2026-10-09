@@ -6,6 +6,7 @@ import { ConfigScreen } from './ConfigScreen.tsx'
 import { DataProvider, clearLocalData, useAppData } from './data/DataProvider.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { useToday } from './lib/useToday.ts'
+import { BalanceScreen } from './screens/BalanceScreen.tsx'
 import { DeliveriesScreen } from './screens/DeliveriesScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { JournalScreen } from './screens/JournalScreen.tsx'
@@ -70,6 +71,7 @@ function Main() {
     case 'months':
       return <MonthsScreen data={data} today={today} />
     case 'balance':
+      return <BalanceScreen data={data} today={today} />
     case 'settings':
       return (
         <AppShell title="Bientôt">

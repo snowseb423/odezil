@@ -1,4 +1,4 @@
-import { ChevronRight, CloudUpload, FileText, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, CloudUpload, FileText, MessageSquareText, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { CommandError, attachDocumentOp, deleteSoaOp, saveSoaOp, soaFigures } from '../data/commands.ts'
 import { prepareDocument } from '../data/documents.ts'
@@ -15,6 +15,7 @@ import { Sheet } from '../ui/Sheet.tsx'
 import { useToast } from '../ui/Toaster.tsx'
 import { Button, Card, Field, Notice, SectionTitle, Select, inputClass, textareaClass } from '../ui/controls.tsx'
 import { DocumentPanel, DocumentPicker } from './DocumentPanel.tsx'
+import { RecapSheet } from './RecapSheet.tsx'
 import { FigureRow, SplitTags } from './shared.tsx'
 import { useCommit } from './useCommit.ts'
 
@@ -41,6 +42,7 @@ const TREATMENTS: { value: VarianceTreatment; label: string; hint: string }[] = 
 export function MonthsScreen({ data, today }: { data: AppData; today: IsoDate }) {
   const [soaFor, setSoaFor] = useState<{ month: IsoMonth; soa: EffectiveSoa | null } | null>(null)
   const [detail, setDetail] = useState<IsoMonth | null>(null)
+  const [recapFor, setRecapFor] = useState<IsoMonth | null>(null)
   const currentMonth = monthOf(today)
   const months = summarizeMonths(data.deliveries, data.soas)
   const toReconcile = months.filter((m) => m.month < currentMonth && m.status !== 'reconciled' && m.status !== 'treated').length
@@ -107,8 +109,10 @@ export function MonthsScreen({ data, today }: { data: AppData; today: IsoDate })
           current={detailSummary.month === currentMonth}
           onClose={() => setDetail(null)}
           onEditSoa={() => setSoaFor({ month: detailSummary.month, soa: (detailSummary.soa as EffectiveSoa | null) ?? null })}
+          onRecap={() => setRecapFor(detailSummary.month)}
         />
       ) : null}
+      {recapFor ? <RecapSheet data={data} today={today} initialMonth={recapFor} onClose={() => setRecapFor(null)} /> : null}
       {soaFor ? <SoaSheet data={data} today={today} initialMonth={soaFor.month} existing={soaFor.soa} onClose={() => setSoaFor(null)} /> : null}
     </AppShell>
   )
@@ -119,11 +123,13 @@ function MonthDetail({
   current,
   onClose,
   onEditSoa,
+  onRecap,
 }: {
   summary: MonthSummary<EffectiveDelivery>
   current: boolean
   onClose: () => void
   onEditSoa: () => void
+  onRecap: () => void
 }) {
   const soa = summary.soa as EffectiveSoa | null
   return (
@@ -152,9 +158,15 @@ function MonthDetail({
         ) : null}
         {summary.status === 'to_treat' ? <Notice tone="warning">Écart en attente : choisissez son traitement.</Notice> : null}
 
-        <Button variant={soa ? 'secondary' : 'primary'} onClick={onEditSoa}>
-          {soa ? 'Modifier le SOA et l’écart' : 'Saisir le SOA du mois'}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button variant={soa ? 'secondary' : 'primary'} onClick={onEditSoa}>
+            {soa ? 'Modifier le SOA et l’écart' : 'Saisir le SOA du mois'}
+          </Button>
+          <Button variant="secondary" onClick={onRecap}>
+            <MessageSquareText size={18} aria-hidden="true" />
+            Message récapitulatif du mois
+          </Button>
+        </div>
 
         {soa ? (
           <section>

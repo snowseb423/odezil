@@ -210,3 +210,72 @@ test.describe('rapprochement SOA', () => {
     await expect.poll(() => [...server.soas.values()].map((s) => [s.variance_cents, s.variance_treatment])).toEqual([[0, 'pending']])
   })
 })
+
+test.describe('solde et remboursements', () => {
+  test.beforeEach(async ({ context }) => {
+    await server.signIn(context)
+    server.deliveries.set('d9000000-0000-4000-8000-000000000001', {
+      id: 'd9000000-0000-4000-8000-000000000001',
+      delivery_date: '2026-09-15',
+      bottles_total: 5,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: null,
+      note: null,
+    })
+    server.deliveries.set('d9000000-0000-4000-8000-000000000002', {
+      id: 'd9000000-0000-4000-8000-000000000002',
+      delivery_date: '2026-10-02',
+      bottles_total: 4,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: null,
+      note: null,
+    })
+  })
+
+  test('remboursements partiels : le solde reste juste', async ({ page }) => {
+    await page.goto('/solde')
+    await expect(page.getByTestId('balance')).toHaveText('Rs\u00A01\u202F200,00')
+    await page.getByRole('button', { name: 'Enregistrer un remboursement' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Remboursement reçu' })
+    await sheet.getByLabel('Montant (Rs)').fill('500')
+    await sheet.getByRole('button', { name: 'Enregistrer' }).click()
+    await expect(page.getByTestId('balance')).toHaveText('Rs\u00A0700,00')
+    await expect.poll(() => [...server.repayments.values()].map((r) => r.amount_cents)).toEqual([50_000])
+    await page.screenshot({ path: 'test-results/screens/solde.png', fullPage: true })
+
+    await page.getByRole('button', { name: /Mer\. 14 oct\./ }).click()
+    await page.getByRole('dialog', { name: 'Modifier le remboursement' }).getByRole('button', { name: 'Supprimer' }).click()
+    await page.getByRole('dialog', { name: 'Supprimer ce remboursement ?' }).getByRole('button', { name: 'Supprimer' }).click()
+    await expect(page.getByTestId('balance')).toHaveText('Rs\u00A01\u202F200,00')
+    await expect.poll(() => server.repayments.size).toBe(0)
+  })
+
+  test('message récapitulatif prêt pour WhatsApp, copié en un appui', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    server.repayments.set('r9000000-0000-4000-8000-000000000001', {
+      id: 'r9000000-0000-4000-8000-000000000001',
+      repayment_date: '2026-09-30',
+      amount_cents: 20_000,
+      note: null,
+    })
+    await page.goto('/solde')
+    await page.getByRole('button', { name: 'Message récapitulatif' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Message récapitulatif' })
+    await expect(sheet.getByLabel('Mois')).toHaveValue('2026-09')
+    const expected =
+      'Bonjour, récap eau de septembre 2026 : 3 bonbonnes × Rs\u00A0240,00 = Rs\u00A0720,00. ' +
+      'Solde antérieur : −Rs\u00A0200,00. Total à régler : Rs\u00A0520,00. Merci !'
+    await expect(sheet.getByLabel('Texte du message')).toHaveValue(expected)
+    await sheet.getByRole('button', { name: 'Copier' }).click()
+    await expect(page.getByText('Message copié')).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(expected)
+
+    await sheet.getByLabel('Mois').selectOption('2026-10')
+    await expect(sheet.getByLabel('Texte du message')).toHaveValue(
+      'Bonjour, récap eau d’octobre 2026 : 2 bonbonnes × Rs\u00A0240,00 = Rs\u00A0480,00. ' +
+        'Solde antérieur : Rs\u00A0520,00. Total à régler : Rs\u00A01\u202F000,00. Merci !',
+    )
+  })
+})
