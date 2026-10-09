@@ -423,3 +423,88 @@ test.describe('historique', () => {
     expect(content).toContain('2026-09;1;5;2;3;480,00;720,00;1200,00;;;;0,00;SOA à saisir')
   })
 })
+
+test.describe('connexion', () => {
+  test('« Se connecter avec Google » : aller-retour PKCE, vérification is_admin, l’app s’ouvre', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Se connecter avec Google' })).toBeVisible()
+    await page.screenshot({ path: 'test-results/screens/connexion.png' })
+    await page.getByRole('button', { name: 'Se connecter avec Google' }).click()
+
+    await expect(page.getByRole('button', { name: /Bonbonne remplacée/ })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/')
+    expect(page.url()).not.toContain('code=')
+    const [authorize] = server.authorizeUrls
+    expect(Object.fromEntries(authorize!.searchParams)).toMatchObject({
+      provider: 'google',
+      redirect_to: 'http://127.0.0.1:4174/auth/callback',
+      prompt: 'select_account',
+      code_challenge_method: 's256',
+    })
+    expect(server.rpcCalls.map((c) => c.fn)).toContain('is_admin')
+  })
+
+  test('compte Google non autorisé : refusé par la garde d’inscription, message clair', async ({ page }) => {
+    server.googleEmail = 'intrus@example.com'
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Se connecter avec Google' }).click()
+    await expect(page.getByRole('alert')).toHaveText('Accès non autorisé : ce compte ne peut pas utiliser EauPartagée.')
+    await expect(page.getByRole('button', { name: 'Se connecter avec Google' })).toBeVisible()
+  })
+
+  test('session valide mais is_admin() faux : déconnexion immédiate et données effacées', async ({ page }) => {
+    server.admin = false
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Se connecter avec Google' }).click()
+    await expect(page.getByRole('alert')).toHaveText('Accès non autorisé : ce compte ne peut pas utiliser EauPartagée.')
+    expect(await page.evaluate(() => localStorage.getItem('eaupartagee-auth'))).toBeNull()
+    expect(server.replacements.size).toBe(0)
+  })
+
+  test('lien par email et code à 6 chiffres', async ({ page }) => {
+    server.google = false
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Se connecter avec Google' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Recevoir un lien par email' }).click()
+    await expect(page.getByLabel('Votre adresse email')).toHaveValue('admin@example.com')
+    await page.getByRole('button', { name: 'Recevoir le lien et le code' }).click()
+    await page.getByLabel('Code reçu par email').fill('123456')
+    await page.getByRole('button', { name: 'Se connecter' }).click()
+    await expect(page.getByRole('button', { name: /Bonbonne remplacée/ })).toBeVisible()
+  })
+})
+
+test.describe('interface à 375 px', () => {
+  test('pas de défilement horizontal, cibles tactiles d’au moins 44 px', async ({ page, context }) => {
+    await server.signIn(context)
+    server.replacements.set('a1000000-0000-4000-8000-000000000001', {
+      id: 'a1000000-0000-4000-8000-000000000001',
+      replaced_at: '2026-10-02T04:00:00.000Z',
+      note: 'une note assez longue pour vérifier que rien ne déborde à 375 pixels de large',
+      delivery_id: null,
+    })
+    for (const [path, marker] of [
+      ['/', 'Derniers remplacements'],
+      ['/journal', 'Consommation par mois'],
+      ['/livraisons', 'Livraisons enregistrées'],
+      ['/mois', 'Historique'],
+      ['/solde', 'Détail du solde'],
+      ['/reglages', 'Prix d’une bonbonne'],
+    ] as const) {
+      await page.goto(path)
+      await expect(page.getByRole('heading', { name: marker })).toBeVisible()
+      const audit = await page.evaluate(() => {
+        const small: string[] = []
+        for (const el of document.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, summary')) {
+          const rect = el.getBoundingClientRect()
+          if (!rect.width || !rect.height || el.closest('dialog:not([open])') || el.getAttribute('aria-hidden') === 'true') continue
+          if (el instanceof HTMLInputElement && (el.type === 'radio' || el.type === 'file')) continue
+          if (rect.width < 43.5 || rect.height < 43.5) small.push(`${el.tagName} « ${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim()} » ${rect.width}×${rect.height}`)
+        }
+        return { overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, small }
+      })
+      expect(audit.overflow, `défilement horizontal sur ${path}`).toBe(false)
+      expect(audit.small, `petites cibles sur ${path}`).toEqual([])
+    }
+  })
+})

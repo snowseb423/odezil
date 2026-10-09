@@ -67,7 +67,7 @@ export function AppShell({ title, hero, children }: { title: ReactNode; hero?: R
           </AppLink>
         </div>
         {!sync.online ? (
-          <p className="bg-text/25 px-4 py-1 text-center text-[0.8125rem] font-bold text-header-ink">
+          <p className="bg-text/25 px-4 py-1 text-center text-[0.8125rem] font-bold text-header-ink" data-testid="offline-banner">
             Hors ligne : les saisies partiront au retour du réseau
           </p>
         ) : null}
