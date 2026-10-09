@@ -3,6 +3,7 @@ import { useAuth } from './auth/AuthProvider.tsx'
 import { AuthProvider } from './auth/AuthProvider.tsx'
 import { LoginScreen } from './auth/LoginScreen.tsx'
 import { ConfigScreen } from './ConfigScreen.tsx'
+import { DataProvider, clearLocalData } from './data/DataProvider.tsx'
 import { env } from './env.ts'
 import { navigate, useLocation } from './lib/router.ts'
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx'
@@ -79,7 +80,9 @@ function Gate() {
     case 'signedIn':
       return (
         <LeaveCallback>
-          <Main />
+          <DataProvider key={state.user.id}>
+            <Main />
+          </DataProvider>
         </LeaveCallback>
       )
   }
@@ -89,7 +92,7 @@ export function App() {
   if (!env.configured) return <ConfigScreen missing={env.missing} />
   return (
     <ToastProvider>
-      <AuthProvider>
+      <AuthProvider onSignedOut={clearLocalData}>
         <Gate />
       </AuthProvider>
       <UpdatePrompt />
