@@ -76,7 +76,7 @@ test.describe('livraisons', () => {
     await sheet.getByRole('button', { name: 'Augmenter : total des bonbonnes' }).click()
     await sheet.getByRole('button', { name: 'Augmenter : total des bonbonnes' }).click()
     await expect(sheet.getByText('5 − 3 =')).toBeVisible()
-    await expect(sheet.getByText('Rs 480,00')).toBeVisible()
+    await expect(sheet.getByText('Rs\u00A0480,00')).toBeVisible()
     await page.screenshot({ path: 'test-results/screens/nouvelle-livraison.png' })
     await sheet.getByRole('button', { name: 'Enregistrer la livraison' }).click()
 
@@ -125,8 +125,8 @@ test.describe('livraisons', () => {
     const detail = page.getByRole('dialog', { name: 'Livraison du 7 octobre 2026' })
     await detail.getByRole('button', { name: 'Recalculer la répartition' }).click()
     const confirm = page.getByRole('dialog', { name: 'Recalculer la répartition ?' })
-    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs 720,00')
-    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs 480,00')
+    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs\u00A0720,00')
+    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs\u00A0480,00')
     await confirm.getByRole('button', { name: 'Recalculer' }).click()
     await expect.poll(() => server.deliveries.get('d1000000-0000-4000-8000-000000000001')?.bottles_f1).toBe(2)
 
@@ -155,5 +155,58 @@ test.describe('livraisons', () => {
     const popup = page.waitForEvent('popup')
     await page.getByRole('button', { name: 'Voir' }).click()
     await (await popup).waitForURL(/\/storage\/v1\/object\/public-e2e\/deliveries\//)
+  })
+})
+
+test.describe('rapprochement SOA', () => {
+  test.beforeEach(async ({ context }) => {
+    await server.signIn(context)
+    server.deliveries.set('d9000000-0000-4000-8000-000000000001', {
+      id: 'd9000000-0000-4000-8000-000000000001',
+      delivery_date: '2026-09-15',
+      bottles_total: 5,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: null,
+      note: null,
+    })
+  })
+
+  test('écart non nul : traitement obligatoire, puis enregistré avec le document du SOA', async ({ page }) => {
+    await page.goto('/mois')
+    await expect(page.getByText('Septembre 2026')).toBeVisible()
+    await page.getByRole('button', { name: 'Saisir un SOA' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Saisir un SOA' })
+    await expect(sheet.getByLabel('Mois')).toHaveValue('2026-09')
+    await sheet.getByLabel('Total du SOA (Rs)').fill('1 210,01')
+    await expect(sheet.getByText('+Rs\u00A010,01', { exact: true })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: 'Enregistrer le SOA' })).toBeDisabled()
+    await expect(sheet.getByText('Choisissez un traitement pour valider.')).toBeVisible()
+    await sheet.getByText('Partager 50/50').click()
+    await sheet.locator('input[type=file]:not([capture])').setInputFiles({
+      name: 'soa-septembre.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 SOA'),
+    })
+    await page.screenshot({ path: 'test-results/screens/soa.png' })
+    await sheet.getByRole('button', { name: 'Enregistrer le SOA' }).click()
+
+    await expect.poll(() => [...server.soas.values()].map((s) => [s.month, s.total_billed_cents, s.variance_cents, s.variance_treatment])).toEqual([
+      ['2026-09-01', 121_001, 1_001, 'split_50_50'],
+    ])
+    await expect.poll(() => [...server.storage.keys()].some((k) => /^soa\/2026-09\/[0-9a-f-]{36}\.pdf$/.test(k))).toBe(true)
+    await expect(page.getByText('Écart traité')).toBeVisible()
+    await page.screenshot({ path: 'test-results/screens/mois.png', fullPage: true })
+  })
+
+  test('SOA conforme : rapproché sans traitement', async ({ page }) => {
+    await page.goto('/mois')
+    await page.getByRole('button', { name: 'Saisir un SOA' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Saisir un SOA' })
+    await sheet.getByLabel('Total du SOA (Rs)').fill('1200')
+    await expect(sheet.getByText('Traitement de l’écart')).toHaveCount(0)
+    await sheet.getByRole('button', { name: 'Enregistrer le SOA' }).click()
+    await expect(page.getByText('Rapproché', { exact: true })).toBeVisible()
+    await expect.poll(() => [...server.soas.values()].map((s) => [s.variance_cents, s.variance_treatment])).toEqual([[0, 'pending']])
   })
 })
