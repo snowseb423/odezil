@@ -1,4 +1,4 @@
-import { ChevronRight, CloudUpload, FileText, MessageSquareText, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, CloudUpload, Download, Eye, FileSpreadsheet, FileText, MessageSquareText, Plus, Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { CommandError, attachDocumentOp, deleteSoaOp, saveSoaOp, soaFigures } from '../data/commands.ts'
 import { prepareDocument } from '../data/documents.ts'
@@ -14,7 +14,9 @@ import { ConfirmSheet } from '../ui/ConfirmSheet.tsx'
 import { Sheet } from '../ui/Sheet.tsx'
 import { useToast } from '../ui/Toaster.tsx'
 import { Button, Card, Field, Notice, SectionTitle, Select, inputClass, textareaClass } from '../ui/controls.tsx'
-import { DocumentPanel, DocumentPicker } from './DocumentPanel.tsx'
+import { DocumentPanel, DocumentPicker, useDocumentOpener } from './DocumentPanel.tsx'
+import { deliverFile } from '../export/download.ts'
+import { deliveriesCsv, monthsCsv } from '../export/csv.ts'
 import { RecapSheet } from './RecapSheet.tsx'
 import { FigureRow, SplitTags } from './shared.tsx'
 import { useCommit } from './useCommit.ts'
@@ -40,6 +42,7 @@ const TREATMENTS: { value: VarianceTreatment; label: string; hint: string }[] = 
 ]
 
 export function MonthsScreen({ data, today }: { data: AppData; today: IsoDate }) {
+  const toast = useToast()
   const [soaFor, setSoaFor] = useState<{ month: IsoMonth; soa: EffectiveSoa | null } | null>(null)
   const [detail, setDetail] = useState<IsoMonth | null>(null)
   const [recapFor, setRecapFor] = useState<IsoMonth | null>(null)
@@ -102,6 +105,28 @@ export function MonthsScreen({ data, today }: { data: AppData; today: IsoDate })
           ))}
         </ul>
       )}
+
+      {months.length > 0 ? (
+        <>
+          <SectionTitle>Exporter</SectionTitle>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => void deliverFile(monthsCsv(months), `eaupartagee-historique-${today}.csv`).catch(() => toast({ tone: 'error', message: 'Export impossible.' }))}
+            >
+              <FileSpreadsheet size={18} aria-hidden="true" />
+              Historique mensuel (CSV)
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void deliverFile(deliveriesCsv(data.deliveries), `eaupartagee-livraisons-${today}.csv`).catch(() => toast({ tone: 'error', message: 'Export impossible.' }))}
+            >
+              <FileSpreadsheet size={18} aria-hidden="true" />
+              Détail des livraisons (CSV)
+            </Button>
+          </div>
+        </>
+      ) : null}
 
       {detailSummary ? (
         <MonthDetail
@@ -175,6 +200,8 @@ function MonthDetail({
           </section>
         ) : null}
 
+        <MonthDocuments summary={summary} />
+
         <section>
           <h3 className="mb-2 font-display text-base font-bold">Livraisons du mois</h3>
           {summary.deliveries.length === 0 ? (
@@ -205,6 +232,32 @@ function MonthDetail({
         </section>
       </div>
     </Sheet>
+  )
+}
+
+/** Bons de livraison du mois : consultation et téléchargement directs. */
+function MonthDocuments({ summary }: { summary: MonthSummary<EffectiveDelivery> }) {
+  const open = useDocumentOpener()
+  const withDocument = summary.deliveries.filter((d) => d.documentPath)
+  if (withDocument.length === 0) return null
+  return (
+    <section>
+      <h3 className="mb-2 font-display text-base font-bold">Bons de livraison du mois</h3>
+      <ul className="divide-y divide-border rounded-2xl border border-border">
+        {withDocument.map((d) => (
+          <li key={d.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
+            <span className="min-w-0 flex-1 font-bold text-text">Bon du {formatDateShort(d.deliveryDate)}</span>
+            <Button variant="ghost" onClick={() => void open(d, false, `bon-livraison-${d.deliveryDate}`)}>
+              <Eye size={18} aria-hidden="true" />
+              Voir
+            </Button>
+            <Button variant="ghost" onClick={() => void open(d, true, `bon-livraison-${d.deliveryDate}`)} aria-label={`Télécharger le bon du ${formatDateShort(d.deliveryDate)}`}>
+              <Download size={18} aria-hidden="true" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
