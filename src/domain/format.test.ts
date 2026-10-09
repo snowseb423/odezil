@@ -4,6 +4,7 @@ import {
   formatDate,
   formatDateLong,
   formatDateShort,
+  formatDecimal,
   formatMonth,
   formatRs,
   formatTime,
@@ -64,6 +65,12 @@ describe('dates et heures en français, à Maurice', () => {
     expect(formatTime('2026-10-14T21:05:00Z')).toBe('01h05')
     expect(formatTimestamp('2026-10-14T10:32:00Z')).toBe('mer. 14/10 à 14h32')
     expect(formatTimestamp('2026-10-14T21:05:00Z')).toBe('jeu. 15/10 à 01h05')
+  })
+
+  it('écrit les nombres décimaux', () => {
+    expect(formatDecimal(1.43)).toBe('1,4')
+    expect(formatDecimal(2)).toBe('2')
+    expect(formatDecimal(1234.56, 2)).toBe(`1${NNBSP}234,56`)
   })
 
   it('accorde les pluriels', () => {
