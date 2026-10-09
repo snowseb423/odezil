@@ -1,0 +1,53 @@
+# Configuration de la CLI Supabase, utile pour le développement local
+# (`supabase start`) et pour pousser les migrations (`supabase db push`).
+# Le projet hébergé se configure dans le tableau de bord (voir README).
+project_id = "eaupartagee"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+# URLs exactes uniquement : jamais de joker sur un domaine partagé (*.vercel.app).
+additional_redirect_urls = ["http://localhost:5173/**", "http://localhost:4173/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+# Email confirmé exigé par public.is_admin().
+enable_confirmations = true
+otp_length = 6
+otp_expiry = 3600
+
+[auth.email.template.magic_link]
+subject = "Votre connexion à EauPartagée"
+content_path = "./supabase/templates/magic_link.html"
+
+# Google : renseigner un client OAuth de développement pour l'activer en local.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = false

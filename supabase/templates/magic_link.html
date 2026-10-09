@@ -1,0 +1,11 @@
+<!-- Modèle « Magic Link » : à coller dans Supabase → Authentication → Emails.
+     Il contient le lien ET le code : sur iPhone, l'app installée ne reçoit
+     pas le lien (il s'ouvre dans Safari), on saisit donc le code dans l'app. -->
+<h2 style="font-family:system-ui,sans-serif;color:#0F2233">Connexion à EauPartagée</h2>
+<p style="font-family:system-ui,sans-serif;color:#0F2233">Touchez ce lien depuis votre téléphone :</p>
+<p style="font-family:system-ui,sans-serif">
+  <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:#0369A1;color:#ffffff;text-decoration:none;font-weight:600">Se connecter</a>
+</p>
+<p style="font-family:system-ui,sans-serif;color:#0F2233">Ou saisissez ce code dans l'app&nbsp;:</p>
+<p style="font-family:ui-monospace,monospace;font-size:28px;font-weight:700;letter-spacing:6px;color:#0F2233">{{ .Token }}</p>
+<p style="font-family:system-ui,sans-serif;color:#5B7083;font-size:13px">Lien et code valables une heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
