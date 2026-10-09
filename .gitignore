@@ -1,0 +1,23 @@
+# Dépendances et builds
+node_modules/
+dist/
+dist-e2e/
+dev-dist/
+dist-e2e/
+coverage/
+*.tsbuildinfo
+
+# Variables d'environnement : seules les valeurs d'exemple sont versionnées
+.env
+.env.*
+!.env.example
+*.local
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# Divers
+.DS_Store
+test-results/
+playwright-report/

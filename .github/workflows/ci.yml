@@ -1,0 +1,44 @@
+# Intégration continue : vérifie chaque pull request et chaque push sur main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un nouveau push annule la vérification en cours sur la même PR ou branche.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Lint, types, tests et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Vérification TypeScript
+        run: npm run typecheck
+
+      - name: Tests unitaires, SQL (PGlite) et contrastes
+        run: npm test
+
+      - name: Build de production
+        run: npm run build

@@ -1,0 +1,63 @@
+/*
+ * Palette froide « eau / glace », thème clair uniquement. Les composants
+ * n'utilisent que ces tokens (la palette par défaut de Tailwind est
+ * désactivée dans index.css). Les contrastes sont vérifiés automatiquement
+ * (tests/contrast.test.ts) : AA (4,5:1) pour tout texte, 3:1 pour les
+ * éléments graphiques (pastilles, bordures de champs).
+ *
+ * <token>       teinte de référence (pastilles, filets, fonds pleins)
+ * <token>-ink   variante pour le texte coloré (AA sur fond clair)
+ * <token>-soft  fond teinté
+ *
+ * Aucune teinte chaude hors warning et danger, réservés aux alertes.
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f4f8fb;
+  --surface: #ffffff;
+  --surface-2: #edf3f8;
+  --surface-3: #e2ebf2;
+  --border: #d9e4ec;
+  --border-strong: #768ca0;
+
+  --text: #0f2233;
+  --text-muted: #5b7083;
+
+  --primary: #0369a1;
+  --primary-hover: #075985;
+  --primary-soft: #e0f2fe;
+  --on-primary: #ffffff;
+  --focus: #0369a1;
+
+  /* Repères des deux foyers : deux teintes froides, jamais rouge/vert. */
+  --foyer-1: #0284c7;
+  --foyer-1-ink: #0369a1;
+  --foyer-1-soft: #e0f2fe;
+  --foyer-2: #6366f1;
+  --foyer-2-ink: #4f46e5;
+  --foyer-2-soft: #eef2ff;
+
+  --success: #0d9488;
+  --success-ink: #0f766e;
+  --success-soft: #e2f5f2;
+  --warning: #d97706;
+  --warning-ink: #b45309;
+  --warning-soft: #fef3e2;
+  --danger: #e11d48;
+  --danger-ink: #be123c;
+  --danger-soft: #ffe4e9;
+
+  /* Bandeau d'en-tête (sous la barre d'état iOS) : couleur primary. */
+  --header-bg: #0369a1;
+  --header-ink: #ffffff;
+  --header-ink-2: #d6ecfa;
+  --header-accent: #e0f2fe;
+  /* Lueur discrète : reste sous le seuil qui ferait passer le texte blanc sous 4,5:1. */
+  --header-glow: rgb(14 165 233 / 0.18);
+
+  --elev-card: 0 1px 2px rgb(15 34 51 / 0.06), 0 12px 32px -18px rgb(15 34 51 / 0.28);
+  --elev-float: 0 -1px 0 rgb(15 34 51 / 0.04), 0 -12px 32px -20px rgb(15 34 51 / 0.3);
+  --scrim: rgb(15 34 51 / 0.5);
+}
