@@ -152,9 +152,14 @@ test.describe('livraisons', () => {
     await expect.poll(() => [...server.deliveries.values()][0]?.document_path).toBe(path)
 
     await page.getByRole('button', { name: /Mer\. 14 oct\./ }).click()
+    // On vérifie que la nouvelle fenêtre part vers l'URL signée, pas l'affichage du PDF :
+    // sans lecteur PDF (headless shell de Playwright, en CI), elle reste sur about:blank.
     const popup = page.waitForEvent('popup')
+    const opened = page.context().waitForEvent('request', (request) => request.isNavigationRequest() && request.url().includes('/public-e2e/'))
     await page.getByRole('button', { name: 'Voir' }).click()
-    await (await popup).waitForURL(/\/storage\/v1\/object\/public-e2e\/deliveries\//)
+    const request = await opened
+    expect(request.url()).toBe(`http://supabase.e2e/storage/v1/object/public-e2e/${path}?token=e2e`)
+    expect(request.frame().page()).toBe(await popup)
   })
 })
 
