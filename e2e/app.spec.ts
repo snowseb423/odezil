@@ -279,3 +279,113 @@ test.describe('solde et remboursements', () => {
     )
   })
 })
+
+test.describe('page du Foyer 2', () => {
+  const TOKEN = 'k3J9xQ2mV7pL0sN4tR8wY1zA6bC5dE3fG2hJ9kL0mN8'
+
+  test.beforeEach(() => {
+    server.deliveries.set('d9000000-0000-4000-8000-000000000001', {
+      id: 'd9000000-0000-4000-8000-000000000001',
+      delivery_date: '2026-09-15',
+      bottles_total: 5,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: 'deliveries/d9000000-0000-4000-8000-000000000001/x.jpg',
+      note: 'NOTE-FOYER-1',
+    })
+    // Livraison propre au Foyer 1 : invisible pour le Foyer 2.
+    server.deliveries.set('d9000000-0000-4000-8000-000000000002', {
+      id: 'd9000000-0000-4000-8000-000000000002',
+      delivery_date: '2026-10-02',
+      bottles_total: 2,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: null,
+      note: null,
+    })
+    server.soas.set('s9000000-0000-4000-8000-000000000001', {
+      id: 's9000000-0000-4000-8000-000000000001',
+      month: '2026-09-01',
+      total_billed_cents: 121_001,
+      variance_cents: 1_001,
+      variance_treatment: 'split_50_50',
+      document_path: null,
+      note: null,
+    })
+    server.repayments.set('r9000000-0000-4000-8000-000000000001', {
+      id: 'r9000000-0000-4000-8000-000000000001',
+      repayment_date: '2026-10-05',
+      amount_cents: 20_000,
+      note: 'NOTE-REMBOURSEMENT',
+    })
+    server.seedShareLink(TOKEN)
+  })
+
+  test('lecture seule, uniquement ses données, rien de stocké sur l’appareil', async ({ page }) => {
+    await page.goto(`/p/${TOKEN}`)
+    await expect(page.getByTestId('shared-balance')).toHaveText('Rs\u00A0525,00')
+    await expect(page.getByText('3 bonbonnes × Rs\u00A0240,00 =')).toBeVisible()
+    await expect(page.getByText('Ajustement (relevé Odezil)')).toBeVisible()
+    await expect(page.getByText(/Dernière mise à jour/)).toBeVisible()
+    await page.screenshot({ path: 'test-results/screens/foyer-2.png', fullPage: true })
+
+    const text = await page.locator('body').innerText()
+    for (const secret of ['Foyer 1', 'NOTE-FOYER-1', 'NOTE-REMBOURSEMENT', '2 oct', '1\u202F210,01', 'Total']) {
+      expect(text).not.toContain(secret)
+    }
+    // Aucune saisie possible : un seul bouton, « Actualiser ».
+    await expect(page.getByRole('button')).toHaveText(['Actualiser'])
+    // Ni session, ni base locale de l'administrateur.
+    expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([])
+    expect(await page.evaluate(async () => (await indexedDB.databases()).map((db) => db.name))).toEqual([])
+    expect(await page.locator('meta[name="referrer"]').getAttribute('content')).toBe('no-referrer')
+    // Le token ne part jamais dans une URL (corps de la requête RPC uniquement).
+    expect(server.rpcCalls.map((c) => c.fn)).toContain('get_shared_view')
+  })
+
+  test('« Actualiser » relit les données', async ({ page }) => {
+    await page.goto(`/p/${TOKEN}`)
+    await expect(page.getByTestId('shared-balance')).toHaveText('Rs\u00A0525,00')
+    server.repayments.set('r9000000-0000-4000-8000-000000000002', {
+      id: 'r9000000-0000-4000-8000-000000000002',
+      repayment_date: '2026-10-14',
+      amount_cents: 52_500,
+      note: null,
+    })
+    await page.getByRole('button', { name: 'Actualiser' }).click()
+    await expect(page.getByTestId('shared-balance')).toHaveText('Rs\u00A00,00')
+    await expect(page.getByText('Tout est réglé. Merci !')).toBeVisible()
+  })
+
+  test('lien inconnu ou révoqué : page générique « Lien invalide »', async ({ page }) => {
+    await page.goto('/p/Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8Ii9Jj0Kk1Ll2Mm3Nn4')
+    await expect(page.getByRole('heading', { name: 'Lien invalide' })).toBeVisible()
+    await expect(page.getByText('Rs')).toHaveCount(0)
+  })
+
+  test('l’administrateur génère un lien, affiché une seule fois, puis le révoque', async ({ page, context }) => {
+    await server.signIn(context)
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    server.shareLinks = []
+    await page.goto('/reglages')
+    await page.getByRole('button', { name: 'Générer le lien' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Nouveau lien du Foyer 2' })
+    const url = await sheet.getByLabel('Lien complet').inputValue()
+    expect(url).toMatch(/^http:\/\/127\.0\.0\.1:4174\/p\/[A-Za-z0-9_-]{43}$/)
+    await sheet.getByRole('button', { name: 'Copier' }).click()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url)
+    // Seul le hash du token est envoyé au serveur.
+    const token = url.split('/p/')[1]!
+    const sent = server.rpcCalls.find((c) => c.fn === 'rotate_share_link')!.args
+    expect(JSON.stringify(sent)).not.toContain(token)
+    expect(server.sharedView(token)).not.toBeNull()
+    await sheet.getByRole('button', { name: 'Fermer' }).click()
+    await expect(page.getByText(/Lien actif depuis le/)).toBeVisible()
+    await expect(page.getByLabel('Lien complet')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Révoquer le lien' }).click()
+    await page.getByRole('dialog', { name: 'Révoquer le lien ?' }).getByRole('button', { name: 'Révoquer' }).click()
+    await expect(page.getByText('Aucun lien actif')).toBeVisible()
+    expect(server.sharedView(token)).toBeNull()
+  })
+})
