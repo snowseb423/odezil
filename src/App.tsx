@@ -4,13 +4,13 @@ import { AuthProvider } from './auth/AuthProvider.tsx'
 import { LoginScreen } from './auth/LoginScreen.tsx'
 import { ConfigScreen } from './ConfigScreen.tsx'
 import { DataProvider, clearLocalData, useAppData } from './data/DataProvider.tsx'
-import { AppShell } from './layout/AppShell.tsx'
 import { useToday } from './lib/useToday.ts'
 import { BalanceScreen } from './screens/BalanceScreen.tsx'
 import { DeliveriesScreen } from './screens/DeliveriesScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { JournalScreen } from './screens/JournalScreen.tsx'
 import { MonthsScreen } from './screens/MonthsScreen.tsx'
+import { SettingsScreen } from './screens/SettingsScreen.tsx'
 import { env } from './env.ts'
 import { navigate, useLocation } from './lib/router.ts'
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx'
@@ -61,7 +61,6 @@ function Main() {
   const data = useAppData()
   const today = useToday()
   const { route, params } = useLocation()
-  const { signOut } = useAuth()
   if (!data) return <Splash />
   switch (route.name) {
     case 'journal':
@@ -73,14 +72,7 @@ function Main() {
     case 'balance':
       return <BalanceScreen data={data} today={today} />
     case 'settings':
-      return (
-        <AppShell title="Bientôt">
-          <p className="text-text-muted">Écran en construction.</p>
-          <Button className="mt-4" variant="secondary" onClick={() => void signOut()}>
-            Se déconnecter
-          </Button>
-        </AppShell>
-      )
+      return <SettingsScreen data={data} today={today} />
     default:
       return <HomeScreen data={data} />
   }
