@@ -63,6 +63,15 @@ export function parseRsToCents(input: string): Cents | null {
   return Number.isSafeInteger(cents) ? cents : null
 }
 
+/** Nombre décimal à la française : « 1,4 », « 12 ». */
+export function formatDecimal(value: number, maxDecimals = 1): string {
+  const factor = 10 ** maxDecimals
+  const rounded = Math.round(value * factor) / factor
+  const [integer = '0', decimals = ''] = Math.abs(rounded).toFixed(maxDecimals).split('.')
+  const trimmed = decimals.replace(/0+$/, '')
+  return `${rounded < 0 ? MINUS : ''}${groupThousands(integer)}${trimmed ? `,${trimmed}` : ''}`
+}
+
 export function capitalize(text: string): string {
   return text ? text[0]!.toLocaleUpperCase('fr') + text.slice(1) : text
 }

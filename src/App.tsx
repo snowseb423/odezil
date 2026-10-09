@@ -3,12 +3,16 @@ import { useAuth } from './auth/AuthProvider.tsx'
 import { AuthProvider } from './auth/AuthProvider.tsx'
 import { LoginScreen } from './auth/LoginScreen.tsx'
 import { ConfigScreen } from './ConfigScreen.tsx'
-import { DataProvider, clearLocalData } from './data/DataProvider.tsx'
+import { DataProvider, clearLocalData, useAppData } from './data/DataProvider.tsx'
+import { AppShell } from './layout/AppShell.tsx'
+import { useToday } from './lib/useToday.ts'
+import { HomeScreen } from './screens/HomeScreen.tsx'
+import { JournalScreen } from './screens/JournalScreen.tsx'
 import { env } from './env.ts'
 import { navigate, useLocation } from './lib/router.ts'
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx'
 import { AppMark } from './ui/AppMark.tsx'
-import { ToastProvider } from './ui/Toaster.tsx'
+import { ToastProvider, useToast } from './ui/Toaster.tsx'
 import { Button } from './ui/controls.tsx'
 
 export function Splash({ label = 'Chargement' }: { label?: string }) {
@@ -51,16 +55,37 @@ function LeaveCallback({ children }: { children: ReactNode }) {
 }
 
 function Main() {
-  const { state, signOut } = useAuth()
+  const data = useAppData()
+  const today = useToday()
+  const { route } = useLocation()
+  const { signOut } = useAuth()
+  if (!data) return <Splash />
+  switch (route.name) {
+    case 'journal':
+      return <JournalScreen data={data} today={today} />
+    case 'deliveries':
+    case 'months':
+    case 'balance':
+    case 'settings':
+      return (
+        <AppShell title="Bientôt">
+          <p className="text-text-muted">Écran en construction.</p>
+          <Button className="mt-4" variant="secondary" onClick={() => void signOut()}>
+            Se déconnecter
+          </Button>
+        </AppShell>
+      )
+    default:
+      return <HomeScreen data={data} />
+  }
+}
+
+function SessionData({ children }: { children: ReactNode }) {
+  const toast = useToast()
   return (
-    <div className="band flex min-h-dvh flex-col items-start justify-end gap-4 px-6 pb-12">
-      <AppMark size={56} />
-      <h1 className="font-display text-3xl font-extrabold">Connecté</h1>
-      <p className="text-header-ink-2">{state.status === 'signedIn' ? state.user.email : ''}</p>
-      <Button variant="secondary" onClick={() => void signOut()}>
-        Se déconnecter
-      </Button>
-    </div>
+    <DataProvider onBlocked={(blocked) => toast({ tone: 'error', message: `Refusé par le serveur : ${blocked.label}. ${blocked.message}` })}>
+      {children}
+    </DataProvider>
   )
 }
 
@@ -80,9 +105,9 @@ function Gate() {
     case 'signedIn':
       return (
         <LeaveCallback>
-          <DataProvider key={state.user.id}>
+          <SessionData key={state.user.id}>
             <Main />
-          </DataProvider>
+          </SessionData>
         </LeaveCallback>
       )
   }

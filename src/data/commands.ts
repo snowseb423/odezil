@@ -7,6 +7,8 @@ import type { Cents, Delivery, IsoDate, IsoMonth, Price, Replacement, Repayment,
 import type { AppData } from './mirror.ts'
 import type { DocumentTarget, Op } from './ops.ts'
 
+export type ReplacementUpsertOp = Extract<Op, { kind: 'replacement.upsert' }>
+
 /** Saisie refusée : le message est affiché tel quel. */
 export class CommandError extends Error {
   constructor(message: string) {
@@ -34,12 +36,16 @@ type Data = Pick<AppData, 'prices' | 'replacements' | 'deliveries' | 'soas'>
 // ---------------------------------------------------------------------
 
 /** « Bonbonne remplacée » : un remplacement à l'instant. */
-export function recordReplacementOp(now: Date = new Date(), id: string = newId()): Op {
+export function recordReplacementOp(now: Date = new Date(), id: string = newId()): ReplacementUpsertOp {
   return { kind: 'replacement.upsert', replacement: { id, replacedAt: now.toISOString(), note: null } }
 }
 
 /** Remplacement oublié, à une date et une heure de Maurice (jamais dans le futur). */
-export function addReplacementOp(input: { date: IsoDate; time: string; note?: string | null }, now: Date = new Date(), id: string = newId()): Op {
+export function addReplacementOp(
+  input: { date: IsoDate; time: string; note?: string | null },
+  now: Date = new Date(),
+  id: string = newId(),
+): ReplacementUpsertOp {
   return { kind: 'replacement.upsert', replacement: { id, replacedAt: pastTimestamp(input.date, input.time, now), note: cleanNote(input.note) } }
 }
 
