@@ -26,7 +26,7 @@ npm run test:e2e    # Playwright (PLAYWRIGHT_CHROMIUM_EXECUTABLE pour un Chromiu
 npm run icons       # régénère les icônes depuis scripts/icon*.svg
 ```
 
-Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run build`.
+Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run build` (et `npm run test:e2e` quand l'interface change).
 
 ## Structure
 
@@ -35,6 +35,7 @@ Avant chaque commit : `npm run lint && npm run typecheck && npm test && npm run 
 - `src/auth/`, `src/share/` (page Foyer 2, chunk séparé, sans Dexie ni session), `src/screens/`, `src/ui/`, `src/layout/`, `src/pwa/`, `src/lib/`.
 - `supabase/migrations/` : SQL horodaté `YYYYMMDDHHMMSS_nom.sql`. **Ne jamais modifier une migration commitée** : en ajouter une.
 - `tests/sql/` : migrations exécutées dans PGlite sur `tests/sql/supabase-stub.sql` (rôles, `auth`, `storage`).
+- `e2e/` : Playwright à 375 px contre `e2e/fake-supabase.ts` (Auth PKCE, REST, RPC, Storage en mémoire, mêmes règles que la base). Projets `app` (service worker bloqué) et `pwa` (service worker actif). Toute évolution du schéma ou des RPC se reporte dans ce faux serveur et dans `src/data/fake-server.ts`.
 
 ## Conventions
 

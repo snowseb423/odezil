@@ -42,3 +42,33 @@ jobs:
 
       - name: Build de production
         run: npm run build
+
+  e2e:
+    name: Tests de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Installation de Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests de bout en bout à 375 px
+        run: npm run test:e2e
+
+      - name: Traces des scénarios en échec
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
