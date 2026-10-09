@@ -44,6 +44,12 @@
       {
         "maxArgs": 2
       }
+    ],
+    "jsx-a11y/label-has-associated-control": [
+      "error",
+      {
+        "depth": 4
+      }
     ]
   },
   "ignorePatterns": [

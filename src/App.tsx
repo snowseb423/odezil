@@ -9,6 +9,7 @@ import { useToday } from './lib/useToday.ts'
 import { DeliveriesScreen } from './screens/DeliveriesScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { JournalScreen } from './screens/JournalScreen.tsx'
+import { MonthsScreen } from './screens/MonthsScreen.tsx'
 import { env } from './env.ts'
 import { navigate, useLocation } from './lib/router.ts'
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx'
@@ -67,6 +68,7 @@ function Main() {
     case 'deliveries':
       return <DeliveriesScreen data={data} today={today} params={params} />
     case 'months':
+      return <MonthsScreen data={data} today={today} />
     case 'balance':
     case 'settings':
       return (
