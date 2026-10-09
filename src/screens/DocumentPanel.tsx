@@ -1,5 +1,5 @@
 import { Camera, Download, Eye, FileUp, RefreshCw, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { CommandError, attachDocumentOp, detachDocumentOp } from '../data/commands.ts'
 import { ACCEPTED_TYPES, prepareDocument } from '../data/documents.ts'
 import type { DocumentTarget, LocalDocument, PendingMark } from '../data/ops.ts'
@@ -10,7 +10,7 @@ import { Button } from '../ui/controls.tsx'
 import { ConfirmSheet } from '../ui/ConfirmSheet.tsx'
 import { useCommit } from './useCommit.ts'
 
-type DocumentOwner = { id: string; documentPath: string | null; month?: string } & LocalDocument & PendingMark
+export type DocumentOwner = { id: string; documentPath: string | null; month?: string } & LocalDocument & PendingMark
 
 /** Boutons cachés : appareil photo (capture) ou fichier (image ou PDF). */
 export function DocumentPicker({ onFile, busy, label = 'Ajouter le document' }: { onFile: (file: File) => void; busy?: boolean; label?: string }) {
@@ -54,6 +54,36 @@ async function openInNewTab(resolve: () => Promise<string>): Promise<void> {
   }
 }
 
+/** Ouvre ou télécharge un document : Blob local s'il est en attente d'envoi, sinon URL signée (en ligne). */
+export function useDocumentOpener(): (owner: DocumentOwner, download: boolean, name: string) => Promise<void> {
+  const toast = useToast()
+  return useCallback(
+    async (owner, download, name) => {
+      const local = owner.localDocument
+      try {
+        if (local) {
+          const url = URL.createObjectURL(local.blob)
+          window.open(url, '_blank', 'noopener')
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+          return
+        }
+        const path = owner.documentPath
+        if (!path || !supabase) return
+        if (!navigator.onLine) {
+          toast({ tone: 'error', message: 'Consultation impossible hors ligne : le document est sur le serveur.' })
+          return
+        }
+        const extension = /\.([a-z]+)$/.exec(path)?.[1] ?? 'pdf'
+        const client = supabase
+        await openInNewTab(() => signedDocumentUrl(client, path, download ? `${name}.${extension}` : undefined))
+      } catch {
+        toast({ tone: 'error', message: 'Document indisponible pour le moment. Réessayez.' })
+      }
+    },
+    [toast],
+  )
+}
+
 /** Consultation, téléchargement, ajout, remplacement et retrait d'un document (bon ou SOA). */
 export function DocumentPanel({
   target,
@@ -86,28 +116,8 @@ export function DocumentPanel({
     }
   }
 
-  async function open(download: boolean) {
-    const local = owner.localDocument
-    try {
-      if (local) {
-        const url = URL.createObjectURL(local.blob)
-        window.open(url, '_blank', 'noopener')
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-        return
-      }
-      const path = owner.documentPath
-      if (!path || !supabase) return
-      if (!navigator.onLine) {
-        toast({ tone: 'error', message: 'Consultation impossible hors ligne : le document est sur le serveur.' })
-        return
-      }
-      const extension = /\.([a-z]+)$/.exec(path)?.[1] ?? 'pdf'
-      const client = supabase
-      await openInNewTab(() => signedDocumentUrl(client, path, download ? `${downloadName}.${extension}` : undefined))
-    } catch {
-      toast({ tone: 'error', message: 'Document indisponible pour le moment. Réessayez.' })
-    }
-  }
+  const openDocument = useDocumentOpener()
+  const open = (download: boolean) => openDocument(owner, download, downloadName)
 
   if (!owner.documentPath) {
     return (

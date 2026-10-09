@@ -389,3 +389,37 @@ test.describe('page du Foyer 2', () => {
     expect(server.sharedView(token)).toBeNull()
   })
 })
+
+test.describe('historique', () => {
+  test.beforeEach(async ({ context }) => {
+    await server.signIn(context)
+    server.deliveries.set('d9000000-0000-4000-8000-000000000001', {
+      id: 'd9000000-0000-4000-8000-000000000001',
+      delivery_date: '2026-09-15',
+      bottles_total: 5,
+      bottles_f1: 2,
+      unit_price_cents_applied: 24_000,
+      document_path: 'deliveries/d9000000-0000-4000-8000-000000000001/b0000000-0000-4000-8000-000000000001.jpg',
+      note: null,
+    })
+    server.storage.set('deliveries/d9000000-0000-4000-8000-000000000001/b0000000-0000-4000-8000-000000000001.jpg', Buffer.from('jpeg'))
+  })
+
+  test('documents du mois et export CSV', async ({ page }) => {
+    await page.goto('/mois')
+    await page.getByRole('button', { name: /Septembre 2026/ }).click()
+    const detail = page.getByRole('dialog', { name: 'Septembre 2026' })
+    await expect(detail.getByText('Bon du mar. 15 sept.')).toBeVisible()
+    const popup = page.waitForEvent('popup')
+    await detail.getByRole('button', { name: 'Voir' }).click()
+    await (await popup).waitForURL(/public-e2e\/deliveries\//)
+    await detail.getByRole('button', { name: 'Fermer' }).click()
+
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Historique mensuel (CSV)' }).click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe('eaupartagee-historique-2026-10-14.csv')
+    const content = await (await import('node:fs/promises')).readFile((await file.path())!, 'utf8')
+    expect(content).toContain('2026-09;1;5;2;3;480,00;720,00;1200,00;;;;0,00;SOA à saisir')
+  })
+})
