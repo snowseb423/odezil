@@ -6,6 +6,7 @@ import { ConfigScreen } from './ConfigScreen.tsx'
 import { DataProvider, clearLocalData, useAppData } from './data/DataProvider.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { useToday } from './lib/useToday.ts'
+import { DeliveriesScreen } from './screens/DeliveriesScreen.tsx'
 import { HomeScreen } from './screens/HomeScreen.tsx'
 import { JournalScreen } from './screens/JournalScreen.tsx'
 import { env } from './env.ts'
@@ -57,13 +58,14 @@ function LeaveCallback({ children }: { children: ReactNode }) {
 function Main() {
   const data = useAppData()
   const today = useToday()
-  const { route } = useLocation()
+  const { route, params } = useLocation()
   const { signOut } = useAuth()
   if (!data) return <Splash />
   switch (route.name) {
     case 'journal':
       return <JournalScreen data={data} today={today} />
     case 'deliveries':
+      return <DeliveriesScreen data={data} today={today} params={params} />
     case 'months':
     case 'balance':
     case 'settings':

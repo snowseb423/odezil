@@ -53,3 +53,107 @@ test.describe('accueil et journal', () => {
     await shot(page, 'journal')
   })
 })
+
+test.describe('livraisons', () => {
+  test.beforeEach(async ({ context }) => {
+    await server.signIn(context)
+    // Trois remplacements du Foyer 1 déjà synchronisés.
+    for (const [id, at] of [
+      ['a1000000-0000-4000-8000-000000000001', '2026-10-02T04:00:00.000Z'],
+      ['a1000000-0000-4000-8000-000000000002', '2026-10-06T04:00:00.000Z'],
+      ['a1000000-0000-4000-8000-000000000003', '2026-10-09T04:00:00.000Z'],
+    ] as const) {
+      server.replacements.set(id, { id, replaced_at: at, note: null, delivery_id: null })
+    }
+  })
+
+  test('nouvelle livraison : aperçu automatique, Foyer 2 = la différence, envoi atomique', async ({ page }) => {
+    await page.goto('/livraisons')
+    await page.getByRole('button', { name: 'Nouvelle livraison' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Nouvelle livraison' })
+    await expect(sheet.getByText('(enregistrés)')).toBeVisible()
+    // Total proposé = remplacements en attente ; on passe à 5.
+    await sheet.getByRole('button', { name: 'Augmenter : total des bonbonnes' }).click()
+    await sheet.getByRole('button', { name: 'Augmenter : total des bonbonnes' }).click()
+    await expect(sheet.getByText('5 − 3 =')).toBeVisible()
+    await expect(sheet.getByText('Rs 480,00')).toBeVisible()
+    await page.screenshot({ path: 'test-results/screens/nouvelle-livraison.png' })
+    await sheet.getByRole('button', { name: 'Enregistrer la livraison' }).click()
+
+    await expect.poll(() => server.rpcCalls.filter((c) => c.fn === 'save_delivery').length).toBe(1)
+    const call = server.rpcCalls.find((c) => c.fn === 'save_delivery')!
+    expect(call.args.p_replacement_ids).toEqual([
+      'a1000000-0000-4000-8000-000000000001',
+      'a1000000-0000-4000-8000-000000000002',
+      'a1000000-0000-4000-8000-000000000003',
+    ])
+    expect(call.args.p_delivery).toMatchObject({ delivery_date: '2026-10-14', bottles_total: 5 })
+    await expect(page.getByText('Foyer 2 : 2')).toBeVisible()
+    await page.screenshot({ path: 'test-results/screens/livraisons.png', fullPage: true })
+  })
+
+  test('excédent reporté et confirmation quand aucun remplacement n’est enregistré', async ({ page }) => {
+    await page.goto('/livraisons?nouvelle=1')
+    const sheet = page.getByRole('dialog', { name: 'Nouvelle livraison' })
+    await sheet.getByRole('button', { name: 'Diminuer : total des bonbonnes' }).click()
+    await expect(sheet.getByText('1 remplacement reporté : plus de remplacements enregistrés que de bonbonnes livrées, vérifie tes saisies.')).toBeVisible()
+    await sheet.getByLabel('Date de livraison').fill('2026-10-01')
+    await expect(sheet.getByText('Aucun remplacement enregistré pour le Foyer 1')).toBeVisible()
+    await sheet.getByRole('button', { name: 'Enregistrer la livraison' }).click()
+    const confirm = page.getByRole('dialog', { name: 'Confirmer la livraison' })
+    await expect(confirm.getByText('toutes les bonbonnes seront attribuées au Foyer 2')).toBeVisible()
+    await confirm.getByRole('button', { name: 'Confirmer' }).click()
+    await expect.poll(() => [...server.deliveries.values()].map((d) => [d.bottles_total, d.bottles_f1])).toEqual([[2, 0]])
+  })
+
+  test('recalcul avec aperçu avant/après, puis suppression : les remplacements repassent en attente', async ({ page }) => {
+    server.deliveries.set('d1000000-0000-4000-8000-000000000001', {
+      id: 'd1000000-0000-4000-8000-000000000001',
+      delivery_date: '2026-10-07',
+      bottles_total: 4,
+      bottles_f1: 1,
+      unit_price_cents_applied: 24_000,
+      document_path: null,
+      note: null,
+    })
+    server.replacements.set('a1000000-0000-4000-8000-000000000001', {
+      ...server.replacements.get('a1000000-0000-4000-8000-000000000001')!,
+      delivery_id: 'd1000000-0000-4000-8000-000000000001',
+    })
+    await page.goto('/livraisons')
+    await page.getByRole('button', { name: /Mer\. 7 oct\./ }).click()
+    const detail = page.getByRole('dialog', { name: 'Livraison du 7 octobre 2026' })
+    await detail.getByRole('button', { name: 'Recalculer la répartition' }).click()
+    const confirm = page.getByRole('dialog', { name: 'Recalculer la répartition ?' })
+    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs 720,00')
+    await expect(confirm.getByText('Montant du Foyer 2')).toContainText('Rs 480,00')
+    await confirm.getByRole('button', { name: 'Recalculer' }).click()
+    await expect.poll(() => server.deliveries.get('d1000000-0000-4000-8000-000000000001')?.bottles_f1).toBe(2)
+
+    await detail.getByRole('button', { name: 'Supprimer la livraison' }).click()
+    await page.getByRole('dialog', { name: 'Supprimer cette livraison ?' }).getByRole('button', { name: 'Supprimer' }).click()
+    await expect.poll(() => server.deliveries.size).toBe(0)
+    expect([...server.replacements.values()].every((r) => r.delivery_id === null)).toBe(true)
+  })
+
+  test('bon de livraison : ajout d’une photo, consultation par URL signée', async ({ page }) => {
+    await page.goto('/livraisons?nouvelle=1')
+    const sheet = page.getByRole('dialog', { name: 'Nouvelle livraison' })
+    await sheet.locator('input[type=file]:not([capture])').setInputFiles({
+      name: 'bon.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 bon de livraison'),
+    })
+    await expect(sheet.getByText('bon.pdf')).toBeVisible()
+    await sheet.getByRole('button', { name: 'Enregistrer la livraison' }).click()
+    await expect.poll(() => [...server.storage.keys()].filter((k) => k.startsWith('deliveries/')).length).toBe(1)
+    const [path] = [...server.storage.keys()]
+    expect(path).toMatch(/^deliveries\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.pdf$/)
+    await expect.poll(() => [...server.deliveries.values()][0]?.document_path).toBe(path)
+
+    await page.getByRole('button', { name: /Mer\. 14 oct\./ }).click()
+    const popup = page.waitForEvent('popup')
+    await page.getByRole('button', { name: 'Voir' }).click()
+    await (await popup).waitForURL(/\/storage\/v1\/object\/public-e2e\/deliveries\//)
+  })
+})
