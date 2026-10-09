@@ -31,7 +31,20 @@
     ],
     "jsx-a11y/prefer-tag-over-role": "off",
     "no-underscore-dangle": "off",
-    "unicorn/no-array-sort": "off"
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    "vitest/valid-expect": [
+      "error",
+      {
+        "maxArgs": 2
+      }
+    ],
+    "jest/valid-expect": [
+      "error",
+      {
+        "maxArgs": 2
+      }
+    ]
   },
   "ignorePatterns": [
     "dist/**",
